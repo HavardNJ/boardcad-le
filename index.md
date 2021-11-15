@@ -26,40 +26,33 @@ information about the project, we refer to the project's
 homepage http://www.boardcad.com and our wiki at
 http://www.boardcad.org.
 
-## Overview
+# Overview
 
 This chapter provides an overview of the most important
 functionality and the workflow for designing a board, from
-defining the basic outline and rocker, to generating and
+defining the basic outline and rocker, to generating a 3D model and
 tuning a board.
-### Creating or opening a board
-Normally you don't create a board from scratch, but start by
-opening one of your existing models. From version 2.0,
-BoardCAD mainly works with STEP-files (.stp), but it can still
-read and save files in the previous formats (.brd and .cad).
-Apart from these native formats, BoardCAD can read files
-from aps3000, shape3D, surfcad and akushaper.
-The first time you use BoardCAD it is natural that you
-don't have any existing models to start from, therefore
-BoardCAD comes with three basic shapes (funboard,
-shortboard, and longboard) that can serve as a starting
-points. You can find them by chosing new in the file menu.
-For this tutorial we choose the shortboard. This creates 2D
-drawings of the outline, rocker, and a number of cross
-sections along the board.
-### Editing the curves
-The first thing we want to do is to scale the board to the
-desired size. If you, like most shapers, have your head
-setup to work with feet and inches, you should make sure
-that BoardCAD does the same in order to avoid having to
-convert all your measures to mm. This can be done from the
-drop down list named unit. For this tutorial we choose
-Imperial (decimal) as our unit. Now we can comfortably click
-the scale button and type in our desired measures, e.g.
-5'10" x 20" x 2.25". There is a lot more that can be said
-about scaling, but that's a chapter in its own, and for now
 
 ## QUICK TUTORIAL
+
+### Creating a new board
+The first time you use BoardCAD it is natural that you
+don't have any existing models to start from.
+BoardCAD comes with three basic shapes (funboard,
+shortboard, and longboard) that can serve as a starting
+points. You create a new board from new in the file menu.
+Don't worry too much if the shape you start with is far from
+what you had in mind, you can make any board from any starting point.
+### Editing the board
+The first thing we want to do is to scale the board to the
+desired size. If you are used to working with feet and inches like most shapers, 
+make sure that you select imperial units in the dropdown on the toolbar.
+Now click the scale button and type in the desired measures, f.ex.
+5'10" x 20" x 2.25". Note that you can input dimension either in fractions or
+decimals regardsless of what unit is selected. You can also input values in
+other units such as mm or m as long as you provide the unit.
+### Editing the board
+
 we don't need to care about all the details to get started.
 Get ready to start editing our curves. Let's start
 with the outline. There are lots of tricks you can use to
