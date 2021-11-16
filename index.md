@@ -15,13 +15,10 @@ allows the shaper to learn much more from each of them.
 BoardCAD doesn't make you a good
 shaper, but used in the right way it can help the inexperienced to
 progress faster and the seasoned to become more productive.
-This guide on how to use BoardCAD, and a
-reference for its funcionality. It is suggested that
-you start with the quick tutorial to get a
+It is suggested that you start with the quick tutorial to get a
 feeling for the overall workflow and the functionality available. 
-The following chapters focus on more specific
-topics and can be read in any order. For information on how
-to get and install BoardCAD, and for more general
+The following chapters go more in detail and can be read in any order. 
+For information on how to download and install BoardCAD, and for more general
 information about the project, we refer to the project's
 homepage http://www.boardcad.com and our wiki at
 http://www.boardcad.org.
@@ -29,9 +26,8 @@ http://www.boardcad.org.
 # Overview
 
 This chapter provides an overview of the most important
-functionality and the workflow for designing a board, from
-defining the basic outline and rocker, to generating a 3D model and
-tuning a board.
+functionality and the workflow for designing a board by
+defining the basic outline, rocker and cross sections.
 
 ## QUICK TUTORIAL
 
@@ -39,11 +35,11 @@ tuning a board.
 The first time you use BoardCAD it is natural that you
 don't have any existing models to start from.
 BoardCAD comes with three basic shapes (funboard,
-shortboard, and longboard) that can serve as a starting
+shortboard, and longboard) that serve as starting
 points. You create a new board from new in the file menu.
 Don't worry too much if the shape you start with is far from
 what you had in mind, you can make any board from any starting point.
-### Editing the board
+### Scale the board
 The first thing we want to do is to scale the board to the
 desired size. If you are used to working with feet and inches like most shapers, 
 make sure that you select imperial units in the dropdown on the toolbar.
@@ -52,44 +48,31 @@ Now click the scale button and type in the desired measures, f.ex.
 decimals regardsless of what unit is selected. You can also input values in
 other units such as mm or m as long as you provide the unit.
 ### Editing the board
-
-we don't need to care about all the details to get started.
-Get ready to start editing our curves. Let's start
-with the outline. There are lots of tricks you can use to
-facilitate the design, like using another board model or
-image of a board as a template. By having them shown in
-the background it is easy to trace their outline when editing
-the curves. This will be shown later, but here we do
-our outline without any aid.
-The outline is defined as a Bezier curve which is made up of
-a number of segments. Each segment starts at a blue
+Let's start with the outline. 
+The outline is defined as a Bezier curve made up of
+segments. Each segment starts at a blue
 control point and ends at the next blue control point.
 Between those two blue points there is a red and a yellow
-point. These define the form of the curve within the specific
+control point. These define the form of the curve within the specific
 segment. You can control the shape of the outline by simply
-clicking and dragging the control points. To force the
-tangent of the curve to be continuous between two
-segments, you can click on the blue control point between
-them and mark "continuous".
-If needed you can also add or remove control points. While
-more control points give more freedom in design it also
-make it harder to create smooth lines, so only add guide
-points when strictly necessary. Details on how to work with
-the control points are given in chapter 5.
-Next we define the rocker by clicking on profile. There is
-one Bezier curve for the deck and one for the bottom. You
-can switch between them by clicking the "Toggle
-Deck/Bottom" icon. For the deck it is good practise to follow
-the rocker of the blank when possible. Again we refer to
-chapter 4 for details on how to show a blank model in the
-background, or chapter 11 for instruction on how to scan a
-blank using a CNC machine. Here, we use our artistic
-freedom to define the rocker. Just as for the outline, we can
+clicking and dragging the control points. To ensure the
+the curve is continuous between two segments, click a control point to
+select it and check "continuous" in the lower right corner.
+You can add or remove control points by right clicking to open menu and
+selecting the options from the pop up menu. After selecting add control point,
+click anywhere on the curve to add a control point. 
+```
+&#x1F6C8 When adding a control point the curve remains the same.
+```
+Clicking on profile tab to work on deck and rocker. You
+can switch between deck and rocker by clicking the "Toggle
+Deck/Bottom" icon or hotkey B. Just as for the outline, we can
 edit our curves by clicking and dragging the control points.
-It is possible to select several control points and move them
-at the same time, which is especially useful for changing the
+Multiple control points can be selected and moved
+at the same time, which is useful for changing the
 rocker in the tail and nose while maintaining the same
-thickness.
+thickness. Select multiple control point by dragging a box around
+them or by clicking multiple control points while holding down CTRL.
 Finally we define our cross sections. The cross sections are
 responsible for the form of the rails, and how all the lines
 flow in 3D. To ensure a good flow it is advisable to use few
