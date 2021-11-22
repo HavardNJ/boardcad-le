@@ -4,7 +4,7 @@
 BoardCAD is an open source CAD/CAM-system for
 surfboards. 
 
-[Downloading and install](/download-install.md)
+[Downloading and installing](/download-install.md)
 
 [Quick start](/quick_start.md)
 
