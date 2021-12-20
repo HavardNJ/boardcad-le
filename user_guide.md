@@ -18,7 +18,7 @@ shaper, but used in the right way it can help the inexperienced
 progress faster and the seasoned to become more productive.
 Start with the quick tutorial to get a
 feeling for the overall workflow and the functionality available, the go more in detail.
-For information on how to download and install BoardCAD see [download and install](https://./dowloading_and_installing.md).
+For information on how to download and install BoardCAD see [downloading and installing](/download-install.md).
 For more general information about the project and contributing see LINK HERE
 
 # Overview
