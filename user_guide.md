@@ -63,6 +63,7 @@ click anywhere on the curve to add a control point.
 ```
 :grey_exclamation: When adding a control point the curve remains the same.
 ```
+:grey_exclamation:
 Click on profile tab to work on deck and rocker. You
 can switch between deck and rocker by clicking the "Toggle
 Deck/Bottom" icon or hotkey B.
