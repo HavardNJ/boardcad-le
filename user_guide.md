@@ -1,5 +1,7 @@
 # BoardCAD user guide
 
+![Alt text](./images/Boardcad .png?raw=true "Title")
+
 ## Introduction
 BoardCAD is an open source CAD/CAM-system for
 surfboards. It is aimed at making the design process easy and intuitive,
