@@ -60,8 +60,9 @@ select it and check "continuous" in the lower right corner.
 You can add or remove control points by right clicking to open the menu and
 selecting the add control point option from the pop up menu. After selecting,
 click anywhere on the curve to add a control point. 
+
 ---
-When adding a control point the curve remains the same.
+![Alt text](./images/info.pnh?raw=true "BoardCAD") When adding a control point the curve remains the same.
 ---
 Click on profile tab to work on deck and rocker. You
 can switch between deck and rocker by clicking the "Toggle
