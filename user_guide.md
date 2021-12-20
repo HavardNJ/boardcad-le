@@ -1,6 +1,6 @@
 # BoardCAD user guide
 
-![Alt text](./images/Boardcad .png?raw=true "Title")
+![Alt text](./images/BoardCAD full - 3D.png?raw=true "BoardCAD")
 
 ## Introduction
 BoardCAD is an open source CAD/CAM-system for
