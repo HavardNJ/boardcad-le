@@ -7,26 +7,21 @@ BoardCAD is an open source CAD/CAM-system for
 surfboards. It is aimed at making the design process easy and intuitive,
 allowing the designer to be creative and play with
 different designs. The result can be
-immediatly visualized in 3D, giving quick feedback.
+visualized in 3D for quick feedback.
 BoardCAD allows the shaper to print full
-scale templates or send the design to a CNC-machine
-to have it produced and taken for a ride. It is only in
-the water it's possible to validate a design, but knowing
+scale templates or have the board CNC-machined. A board can only be
+validated in the water, but knowing
 exactly what has been changed between different boards
-allows the shaper to learn much more from each of them.
+allows the shaper to learn more from each of them.
 BoardCAD doesn't make you a good
-shaper, but used in the right way it can help the inexperienced to
+shaper, but used in the right way it can help the inexperienced
 progress faster and the seasoned to become more productive.
-It is suggested that you start with the quick tutorial to get a
-feeling for the overall workflow and the functionality available. 
-The following chapters go more in detail and can be read in any order. 
-For information on how to download and install BoardCAD, and for more general
-information about the project, we refer to the project's
-homepage http://www.boardcad.com and our wiki at
-http://www.boardcad.org.
+Start with the quick tutorial to get a
+feeling for the overall workflow and the functionality available, the go more in detail.
+For information on how to download and install BoardCAD see [download and install](https://./dowloading_and_installing.md).
+For more general information about the project and contributing see LINK HERE
 
 # Overview
-
 This chapter provides an overview of the most important
 functionality and the workflow for designing a board by
 defining the basic outline, rocker and cross sections.
@@ -41,6 +36,7 @@ shortboard, and longboard) that serve as starting
 points. You create a new board from new in the file menu.
 Don't worry too much if the shape you start with is far from
 what you had in mind, you can make any board from any starting point.
+
 ### Scale the board
 The first thing we want to do is to scale the board to the
 desired size. If you are used to working with feet and inches like most shapers, 
@@ -49,14 +45,15 @@ Now click the scale button and type in the desired measures, f.ex.
 5'10" x 20" x 2.25". Note that you can input dimension either in fractions or
 decimals regardsless of what unit is selected. You can also input values in
 other units such as mm or m as long as you provide the unit.
+
 ### Editing the board
-Let's start with the outline. 
+Start with the outline. 
 The outline is defined as a Bezier curve made up of
 segments. Each segment starts at a blue
 control point and ends at the next blue control point.
 Between those two blue points there is a red and a yellow
 control point. These define the form of the curve within the specific
-segment. You can control the shape of the outline by simply
+segment. You can control the shape of the outline by
 clicking and dragging the control points. To ensure the
 the curve is continuous between two segments, click a control point to
 select it and check "continuous" in the lower right corner.
@@ -64,7 +61,7 @@ You can add or remove control points by right clicking to open the menu and
 selecting the add control point option from the pop up menu. After selecting,
 click anywhere on the curve to add a control point. 
 ```
-&#x1F6C8 When adding a control point the curve remains the same.
+:grey_exclamation: When adding a control point the curve remains the same.
 ```
 Click on profile tab to work on deck and rocker. You
 can switch between deck and rocker by clicking the "Toggle
