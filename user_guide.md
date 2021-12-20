@@ -62,7 +62,7 @@ selecting the add control point option from the pop up menu. After selecting,
 click anywhere on the curve to add a control point. 
 
 ---
-![Info](./images/info.png?raw=true)<center>When adding a control point the curve remains the same.</center>
+<center>![Info](./images/info.png?raw=true)When adding a control point the curve remains the same.</center>
 ---
 
 Click on profile tab to work on deck and rocker. You
