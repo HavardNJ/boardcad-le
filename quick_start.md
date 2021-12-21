@@ -33,7 +33,7 @@ You can add or remove control points by right clicking to open the menu and
 selecting the add control point option from the pop up menu. After selecting,
 click anywhere on the curve to add a control point. 
 
-`![Info](./images/info.png)When adding a control point the curve remains the same`
+![Info](./images/info.png)`When adding a control point the curve remains the same`
 
 Click on profile tab to work on deck and rocker. You
 can switch between deck and rocker by clicking the "Toggle
