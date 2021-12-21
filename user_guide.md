@@ -26,9 +26,130 @@ This chapter provides an overview of the most important
 functionality and the workflow for designing a board by
 defining the basic outline, rocker and cross sections.
 
+## EDITING
+
+### General tips for editing curves
+The curves are edited by clicking and dragging the control
+points. You can also move these points with the keyboard
+arrow keys (more precise) or input the exact coordinate in
+the respective text boxes (in the lower, right corner) and
+click the set button. To make a tangent longer press E
+(extend), to make it shorter press R (retract). To rotate the
+control point clockwise press W, to rotate it counterclockwise press Q.
+By holding down the ALT key you make every editing
+operation 1/10th of normal operation. This gives you good
+precision even when dragging the points with the mouse.
+By clicking while holding down Ctrl or Shift, or by clicking
+and dragging a rectangle box around the points you can
+select multiple center points that can be moved all together
+with the mouse or moved by steps with the keyboard arrow
+keys (this is useful for adjusting the rocker without changing
+the thickness at the nose tip and tail tip) In the Deck View
+select all nose and/or tail control points and drag/move. It's
+also useful for adding vee's or concaves without distorting
+the rail shape, select all the center points of the rail and
+move them together.
+The "h" key hides/shows the control points.
+Use the < key to cycle through the tangents and center
+point of a control point. Use the c key to cycle through the
+control points of a curve.
+Click add point to go to add point mode. Click on the curve
+to add a control point to the curve. The curve will not
+change. Click delete point to delete the selected points.
+Undo/redo can be done on every change you make to the
+curves. The number of operations you can undo is only
+limited by available memory.
+Pan and zoom by selecting the pan and zoom mode clicking
+on the respective buttons. To go back to edit mode (for
+selecting control points), press the edit button in the toolbar
+or in the right click pop-up menu , or even hit "Esc" on the
+keyboard. You can also pan by holding the mouse scroll
+wheel button (very useful!) and dragging the board.
+Spinning the mouse wheel zooms in and out when in edit
+mode.
+
+### Input values
+All inputs that take measurements can take the following
+formats: FEET/INCHES (ex. 6'10" or 3 1/4"), METERS (ex.
+0.5m), CENTIMETERS (ex. 50cm), or MILIMETERS (ex.
+2200mm).
+If you don't specify a unit, the current unit will be used. In
+the case of feet/inches the input value will be inches.
+
+### Outline
+Click on the Outline tab to view the outline in a single
+window and facilitate the editing. The outline is edited by
+clicking and dragging the control points. Normally you will
+want to have the Continuous checkbox marked for all control
+points. That means that the tangent will be maintained
+continuous between different segments of the Bezier curve,
+creating a smooth outline. On the other hand, unchecking
+continuous will allow you to easily create wingers in the
+outline.
+
+### Profile
+The deck and bottom rocker are most easily edited in the
+Profile tab. If you have access to a model of the blank from
+which you intend to shape the board, it can be practical to load
+the blank model as a ghost board to make sure that the final
+board model will fit inside the blank.
+The deck and the bottom are edited just like any other
+curve. Use the Toggle Deck/Bottom to switch between the
+two curves. To change the rocker in the tail or nose without
+changing their thickness you can use the Toggle function so
+that both curves are opened simultaneously and then mark
+both the points on the bottom and the deck before changing
+their positions.
+
+### Cross Sections
+In the cross section view, the lower view shows the position
+of the crossections on the outline. The currently selected
+cross section is show with a red line.
+Click near any crossection to select it, or use +/- to cycle
+through the cross sections. Cross sections can be added,
+moved and deleted using the menus.
+When adding cross sections the new cross section depends
+on the interpolation method used, this setting is in the misc
+menu. If blend or S blend interpolation is used, you will get
+a copy of the nearest cross section, if control point
+interpolation is used the new cross section will be the
+interpolated slice at this point. Copy and paste of cross
+sections can also be done.
+While it is possible to use different number of control points
+in each cross sections, it is often easiest to get a good flow
+of the rails if the same number of points is used in all cross
+sections. To generate high quality 3D-models from the cross
+sections it is advised to always leave a slight tucked under
+and to use a control point with vertically placed tangent
+points at the rail apex.
+### Other useful features
+* There is a sliding info bar for measurements at any given
+point along the length of the board. In it, you can also show
+over curve measurements which makes it possible to get
+accurate measurements at any given point over the bottom
+curve. Very useful to get measurements as exactly as
+possible as it's hard to measure on the actual blank unless
+you measure over the bottom curve. On the other hand, if
+you look at these measurement with regards to the x
+position the difference is not that big.
+* You can view the curvature of the board to ensure that the
+curve is smooth. In particular around a control point the
+curvature graph may be discontinous. This may be visible in
+a cut board or a template. The curvature graph can also be
+used to analyze the curves beyond what is otherwise
+possible visually. Note that the sliding info for bottom shows
+the radius of the curvature at any point which is also useful
+for analyzing the curvature of the rocker. Curvature can be
+compared between boards by loading a ghost board, when G
+is pressed the curvature of both the current board and the
+ghost board are shown (if 'show curvature' is selected).
+* If you have zoomed in close and want to see how your
+changes affect the greater picture, you can click the spot
+check button or space bar to view the entire board, when
+you let go it returns to the previous zoom.
 
 ## SETTING
-PREFERENCES
+### Preferences
 BoardCAD is intended to be used by anyone who is
 interested in designing surfboards. Different
 users have different needs and preferences. BoardCAD is
@@ -36,7 +157,7 @@ configurable and you can control
 the visual apperance of the board models and what
 design aids you'd like to be present on the screen. BoardCAD also support different languages.
 
-3.1 Viewing design aids
+### Design aids
 Under the View-menu you'll find a list of different design
 aids that can be switched on and off. While all are useful,
 having all visible at the same time clutter the
@@ -128,7 +249,7 @@ sections have the same number of control points, S-blend
 interpolation is more reliable when different number of control 
 points are used.
 
-### Setting menu language
+### Setting language
 It is possible to change the language of the menus in
 BoardCAD. This is done under the menu Misc, Language.
 Currently six languages are supported: English, French,
@@ -140,156 +261,34 @@ inspiration from other designs, by copying for example the
 outline, or just comparing the current design with other
 designs. Depending on what you have at hand, this can be
 done in different ways. If you already have the model of the
-other board you can simply put that model in the
-background as a Ghost model. If you only have the physical
-board, the best thing is take as many measures as possible
-(preferable using a scanner as in chapter 11) and add those
-as guide points. Even in the case that you only have a
-picture of the board it is still possible to use that as a
-template by showing the picture in the background. Here we
-show you each of these alternatives.
+other board you can load the board and show it in the
+background as a Ghost board. If you have the physical
+board you can take take measurements and add those
+as guide points. If you have a picture of the board you can use that
+as a template by displaying the picture in the background.
+
 ### Ghost board
 A ghost board can be loaded in the background to compare
 designs. The ghost board can be moved by holding down G
 (brings it into focus) and using the arrow keys.
 The ghost board can also be scaled to the same size as the
-current board using the respective command at the Board
-menu.
+current board using the command in the board menu. Ghost boards
+can be rotated using the Q an W hotkeys.
+
 ### Guide points
 You can add guidepoints by clicking the Add guide point
 button and directly insert the point in the 'board area' by
-clicking.
-You can also open the Guide points table either via the
+clicking. You can also open the Guide points table either via the
 Board menu or via Right click of the mouse. Once the table
 is open you can directly edit any existing guide points by
-## USING TEMPLATES
-
 double clicking. By right clicking the mouse you can choose
 to add new guide points via (x,y) coordinates or you can
 choose to remove any highlighted guidepoints.
+
 ### Background image
 A background image can be loaded in every view. This is
-positioned by holding down T and clicking on the tail, and
-holding down N and clicking on the nose.
-
-## EDITING
-### General tips for editing curves
-The curves are edited by clicking and dragging the control
-points. You can also move these points with the keyboard
-arrow keys (more precise) or input the exact coordinate in
-the respective text boxes (in the lower, right corner) and
-click the set button. To make a tangent longer press E
-(extend), to make it shorter press R (retract). To rotate the
-control point clockwise press W, to rotate it counterclockwise press Q.
-By holding down the ALT key you make every editing
-operation 1/10th of normal operation. This gives you good
-precision even when dragging the points with the mouse.
-By clicking while holding down Ctrl or Shift, or by clicking
-and dragging a rectangle box around the points you can
-select multiple center points that can be moved all together
-with the mouse or moved by steps with the keyboard arrow
-keys (this is useful for adjusting the rocker without changing
-the thickness at the nose tip and tail tip) In the Deck View
-select all nose and/or tail control points and drag/move. It's
-also useful for adding vee's or concaves without distorting
-the rail shape, select all the center points of the rail and
-move them together.
-The "h" key hides/shows the control points.
-Use the < key to cycle through the tangents and center
-point of a control point. Use the c key to cycle through the
-control points of a curve.
-Click add point to go to add point mode. Click on the curve
-to add a control point to the curve. The curve will not
-change. Click delete point to delete the selected points.
-Undo/redo can be done on every change you make to the
-curves. The number of operations you can undo is only
-limited by available memory.
-Pan and zoom by selecting the pan and zoom mode clicking
-on the respective buttons. To go back to edit mode (for
-selecting control points), press the edit button in the toolbar
-or in the right click pop-up menu , or even hit "Esc" on the
-keyboard. You can also pan by holding the mouse scroll
-wheel button (very useful!) and dragging the board.
-Spinning the mouse wheel zooms in and out when in edit
-mode.
-### Input values
-All inputs that take measurements can take the following
-formats: FEET/INCHES (ex. 6'10" or 3 1/4"), METERS (ex.
-0.5m), CENTIMETERS (ex. 50cm), or MILIMETERS (ex.
-2200mm).
-If you don't specify a unit, the current unit will be used. In
-the case of feet/inches the input value will be inches.
-
-### Outline
-Click on the Outline tab to view the outline in a single
-window and facilitate the editing. The outline is edited by
-clicking and dragging the control points. Normally you will
-want to have the Continuous checkbox marked for all control
-points. That means that the tangent will be maintained
-continuous between different segments of the Bezier curve,
-creating a smooth outline. On the other hand, unchecking
-continuous will allow you to easily create wingers in the
-outline.
-### Profile
-The deck and bottom rocker are most easily edited in the
-Profile tab. If you have access to a model of the blank from
-which you intend to shape the board, it is practical to load
-
-the blank model as a ghost board to make sure that the final
-board model will fit inside the blank.
-The deck and the bottom are edited just like any other
-curve. Use the Toggle Deck/Bottom to switch between the
-two curves. To change the rocker in the tail or nose without
-changing their thickness you can use the Toggle function so
-that both curves are opened simultaneously and then mark
-both the points on the bottom and the deck before changing
-their positions.
-### Cross Sections
-In the cross section view, the lower view shows the position
-of the crossections on the outline. The currently selected
-cross section is show with a red line.
-Click near any crossection to select it, or use +/- to cycle
-through the cross sections. Cross sections can be added,
-moved and deleted using the menus.
-When adding cross sections the new cross section depends
-on the interpolation method used, this setting is in the misc
-menu. If blend or S blend interpolation is used, you will get
-a copy of the nearest cross section, if control point
-interpolation is used the new cross section will be the
-interpolated slice at this point. Copy and paste of cross
-sections can also be done.
-While it is possible to use different number of control points
-in each cross sections, it is often easiest to get a good flow
-of the rails if the same number of points is used in all cross
-sections. To generate high quality 3D-models from the cross
-sections it is advised to always leave a slight tucked under
-and to use a control point with vertically placed tangent
-points at the rail apex.
-### Other useful features
-* There is a sliding info bar for measurements at any given
-point along the length of the board. In it, you can also show
-over curve measurements which makes it possible to get
-accurate measurements at any given point over the bottom
-curve. Very useful to get measurements as exactly as
-possible as it's hard to measure on the actual blank unless
-you measure over the bottom curve. On the other hand, if
-you look at these measurement with regards to the x
-position the difference is not that big.
-* You can view the curvature of the board to ensure that the
-curve is smooth. In particular around a control point the
-curvature graph may be discontinous. This may be visible in
-a cut board or a template. The curvature graph can also be
-used to analyze the curves beyond what is otherwise
-possible visually. Note that the sliding info for bottom shows
-the radius of the curvature at any point which is also useful
-for analyzing the curvature of the rocker. Curvature can be
-compared between boards by loading a ghost board, when G
-is pressed the curvature of both the current board and the
-ghost board are shown (if 'show curvature' is selected).
-* If you have zoomed in close and want to see how your
-changes affect the greater picture, you can click the spot
-check button or space bar to view the entire board, when
-you let go it returns to the previous zoom.
+positioned by holding down T and clicking on the tail of the image, 
+and holding down N and clicking on the nose.
 
 ## PRINTING
 Board templates can be printed in full scale. In addition
@@ -332,6 +331,7 @@ to be used for cutting foam block with a hotwire cutter or
 cutting templates. Here we give a short introduction to the
 different formats and what is included in each of them in
 order to understand their strenghs and limitations.
+
 ### STEP
 STEP (ISO 10303 - STandard for the Exchange of Product
 models) is an international standard for exchanging CAD
@@ -428,6 +428,7 @@ board will rotate around origo. Once you have positioned the
 board inside the blank it is good practise to save the model
 so you don't have to do this again if you want to cut the
 same board using the same blank in the future.
+
 ### Generating deck cuts
 While we have already made sure that the horizontal
 position of the blank model corresponds to the horizontal
@@ -446,6 +447,7 @@ Linux CNC want the file name to end with the extension
 .ngc, so here we name the file deck.ngc.
 We can visualize the cutting paths by marking "View deck
 cuts" in the popup menu.
+
 ### Generating bottom cuts
 Generating tool paths for the other side of the board is easy.
 All we need to do is to choose "Flip board" in the 3D menu,
