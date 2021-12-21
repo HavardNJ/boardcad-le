@@ -18,7 +18,7 @@ Now click the scale button and type in the desired measures, f.ex.
 decimals regardsless of what unit is selected. You can also input values in
 other units such as mm or m as long as you provide the unit.
 
-### Editing the board
+### Edit the board
 Start with the outline. 
 The outline is defined as a Bezier curve made up of
 segments. Each segment starts at a blue
