@@ -29,7 +29,6 @@ can be set to continous using the control point info, this ensures that the tang
 segment and the next have the same direction making the curve smooth across the control point.
 
 ![Control points](./images/Control points.png?raw=true)
-<figcaption>Control points</figcaption>
 
 ## Editing curves
 There are three different ways to edit the curves: mouse, keyboard and through the control point info
@@ -42,11 +41,10 @@ while selecting multiple blue control points. Moving multiple control points can
 maintain the same outline curve when adjusting the width of a board, maintaining the rail shape when 
 adding concave or vee or maintaining nose and tail thickness when adjusting rocker. 
 ![Multiselect](./images/multiselect.png?raw=true)
-<figcaption>multiselect</figcaption>
 
-You can use the quad
+Use the quad
 view keep an overview of the entire board while editing, or select the individual profile, outline and cross sections 
-tabs for more detailed views with less visual noise. While editing the coordinates of the mouse is displayed in the
+tabs for more detailed view with less visual noise. While editing the coordinates of the mouse is displayed in the
 top left corner of the view and the control point positions are updated in control point info.
 While editing you can zoom using the zoom mode in the tool bar and dragging a box around the area you want to zoom on,
 or you can use the scroll wheel on the mouse to zoom. To pan the view, use the pan mode in toolbar or click and hold the
@@ -64,10 +62,8 @@ to have the board CNC'd using other software than boardCAD you should take parti
 between cross sections and keeping the same number of control points on each cross section.
 
 ### Editing using the keyboard
-You can also move these points with the keyboard
-arrow keys (more precise) or input the exact coordinate in
-the respective text boxes (in the lower, right corner) and
-click the set button. To make a tangent longer press E
+You can move the selected control point with the keyboard
+arrow keys . To make a tangent longer press E
 (extend), to make it shorter press R (retract). To rotate the
 control point clockwise press W, to rotate it counterclockwise press Q.
 By holding down the ALT key you make every editing
@@ -102,7 +98,10 @@ wheel button (very useful!) and dragging the board.
 Spinning the mouse wheel zooms in and out when in edit
 mode.
 
-### Editing using the keyboard
+### Editing using control point info
+(more precise) or input the exact coordinate in
+the respective text boxes (in the lower, right corner) and
+click the set button.
 
 ### Input values
 Inputs that take measurements can take the various formats
