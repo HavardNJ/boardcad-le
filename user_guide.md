@@ -2,7 +2,7 @@
 
 ![BoardCAD](./images/BoardCAD full - 3D.png?raw=true)
 
-## Introduction
+# Introduction
 BoardCAD is an open source CAD/CAM-system for
 surfboards. It is aimed at making the design process easy and intuitive,
 allowing the designer to be creative and play with
@@ -21,16 +21,43 @@ feeling for the overall workflow and the functionality available, the go more in
 For information on how to download and install BoardCAD see [downloading and installing](/download-install.md).
 For more general information about the project and contributing see LINK HERE
 
-# Overview
-This chapter provides an overview of the most important
-functionality and the workflow for designing a board by
-defining the basic outline, rocker and cross sections.
+# EDITING
+The outline, rocker and cross sections are defined using composite bezier curves. 
+The curves consist of bezier curve segments which are defined by the blue end points
+and the yellow and red control points which define the shape of the segment. The endpoints
+can be set to continous using the control point info, this ensures that the tangents of the previous 
+segment and the next have the same direction making the curve smooth across the control point.
 
-## EDITING
+## Editing curves
+There are three different ways to edit the curves: mouse, keyboard and through the control point info
+user interface.
 
-### General tips for editing curves
-The curves are edited by clicking and dragging the control
-points. You can also move these points with the keyboard
+### Editing using the mouse
+The curves can easily be edited by clicking on a control point and dragging it using the mouse.
+Multiple control points can be selected by either dragging a box around them or holding down CRTL
+while selecting multiple blue control points. Moving multiple control points can be useful f.ex. to 
+maintain the same outline curve when adjusting the width of a board, maintaining the rail shape when 
+adding concave or vee or maintaining nose and tail thickness when adjusting rocker. You can use the quad
+view keep an overview of the entire board while editing, or select the individual profile, outline and cross sections 
+tabs for more detailed views with less visual noise. While editing the coordinates of the mouse is displayed in the
+top left corner of the view and the control point positions are updated in control point info.
+While editing you can zoom using the zoom mode in the tool bar and dragging a box around the area you want to zoom on,
+or you can use the scroll wheel on the mouse to zoom. To pan the view, use the pan mode in toolbar or click and hold the
+scroll wheel and drag to pan. Click fit in the toolbar to fit the curves to the view after panning and zooming or use
+spot check from the right click menu to quickly view the entire curves without loosing you zoom and pan and continue
+working on the part of the board.
+Additonal control points can be added using the right click menu in the view or the toolbar. Click on the curve to add the 
+control point. Note that the curve will remain the same after adding a control point. Control points can be removed in the
+same manner. Note that the curve is not guaranteed to remain the same after removing a control point. It's advicable to
+use no more control points than neccasary to define the curves your after as curve segments are smoother than the composite
+curves.
+When editing cross sections you can select different cross sections by clicking on the position of the cross section on the outline.
+Cross sections can be added, moved and removed from the right click menu. You can also copy and paste cross sections. If you intend
+to have the board CNC'd using other software than boardCAD you should take particular care of not moving control point too extreme
+between cross sections and keeping the same number of control points on each cross section.
+
+### Editing using the keyboard
+You can also move these points with the keyboard
 arrow keys (more precise) or input the exact coordinate in
 the respective text boxes (in the lower, right corner) and
 click the set button. To make a tangent longer press E
@@ -68,60 +95,16 @@ wheel button (very useful!) and dragging the board.
 Spinning the mouse wheel zooms in and out when in edit
 mode.
 
+### Editing using the keyboard
+
 ### Input values
-All inputs that take measurements can take the following
-formats: FEET/INCHES (ex. 6'10" or 3 1/4"), METERS (ex.
-0.5m), CENTIMETERS (ex. 50cm), or MILIMETERS (ex.
-2200mm).
-If you don't specify a unit, the current unit will be used. In
-the case of feet/inches the input value will be inches.
+Inputs that take measurements can take the various formats
+regardless of the selected unit f.ex imperial (ex. 6'10" or 3 1/4"), meters (ex.
+0.5m), centimeters (ex. 50.5cm), or millimeters (ex. 2200mm).
+If no unit is specified, the current unit will be used. For imperial 
+the input value will be inches.
 
-### Outline
-Click on the Outline tab to view the outline in a single
-window and facilitate the editing. The outline is edited by
-clicking and dragging the control points. Normally you will
-want to have the Continuous checkbox marked for all control
-points. That means that the tangent will be maintained
-continuous between different segments of the Bezier curve,
-creating a smooth outline. On the other hand, unchecking
-continuous will allow you to easily create wingers in the
-outline.
 
-### Profile
-The deck and bottom rocker are most easily edited in the
-Profile tab. If you have access to a model of the blank from
-which you intend to shape the board, it can be practical to load
-the blank model as a ghost board to make sure that the final
-board model will fit inside the blank.
-The deck and the bottom are edited just like any other
-curve. Use the Toggle Deck/Bottom to switch between the
-two curves. To change the rocker in the tail or nose without
-changing their thickness you can use the Toggle function so
-that both curves are opened simultaneously and then mark
-both the points on the bottom and the deck before changing
-their positions.
-
-### Cross Sections
-In the cross section view, the lower view shows the position
-of the crossections on the outline. The currently selected
-cross section is show with a red line.
-Click near any crossection to select it, or use +/- to cycle
-through the cross sections. Cross sections can be added,
-moved and deleted using the menus.
-When adding cross sections the new cross section depends
-on the interpolation method used, this setting is in the misc
-menu. If blend or S blend interpolation is used, you will get
-a copy of the nearest cross section, if control point
-interpolation is used the new cross section will be the
-interpolated slice at this point. Copy and paste of cross
-sections can also be done.
-While it is possible to use different number of control points
-in each cross sections, it is often easiest to get a good flow
-of the rails if the same number of points is used in all cross
-sections. To generate high quality 3D-models from the cross
-sections it is advised to always leave a slight tucked under
-and to use a control point with vertically placed tangent
-points at the rail apex.
 ### Other useful features
 * There is a sliding info bar for measurements at any given
 point along the length of the board. In it, you can also show
