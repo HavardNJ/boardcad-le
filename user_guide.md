@@ -28,6 +28,9 @@ and the yellow and red control points which define the shape of the segment. The
 can be set to continous using the control point info, this ensures that the tangents of the previous 
 segment and the next have the same direction making the curve smooth across the control point.
 
+![Control points](./images/Control points.png?raw=true)
+<figcaption>Control points</figcaption>
+
 ## Editing curves
 There are three different ways to edit the curves: mouse, keyboard and through the control point info
 user interface.
@@ -37,7 +40,11 @@ The curves can easily be edited by clicking on a control point and dragging it u
 Multiple control points can be selected by either dragging a box around them or holding down CRTL
 while selecting multiple blue control points. Moving multiple control points can be useful f.ex. to 
 maintain the same outline curve when adjusting the width of a board, maintaining the rail shape when 
-adding concave or vee or maintaining nose and tail thickness when adjusting rocker. You can use the quad
+adding concave or vee or maintaining nose and tail thickness when adjusting rocker. 
+![Multiselect](./images/multiselect.png?raw=true)
+<figcaption>multiselect</figcaption>
+
+You can use the quad
 view keep an overview of the entire board while editing, or select the individual profile, outline and cross sections 
 tabs for more detailed views with less visual noise. While editing the coordinates of the mouse is displayed in the
 top left corner of the view and the control point positions are updated in control point info.
