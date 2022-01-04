@@ -30,7 +30,7 @@ segment and the next have the same direction making the curve smooth across the 
 
 <figure>
   <img src="./images/Control points.png" alt="Control points">
-  <figcaption align = "center"><small>Control points</small></figcaption>
+  <figcaption align="center"><small>Control points</small></figcaption>
 </figure>
 
 ## Editing curves
@@ -46,7 +46,7 @@ adding concave or vee or maintaining nose and tail thickness when adjusting rock
 
 <figure>
   <img src="./images/multiselect.png" alt="Multiselect">
-  <figcaption align = "center"><small>Multiselect control points</small></figcaption>
+  <figcaption align="center"><small>Multiselect control points</small></figcaption>
 </figure>
 
 Use the quad
