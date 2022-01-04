@@ -49,8 +49,7 @@ adding concave or vee or maintaining nose and tail thickness when adjusting rock
   <figcaption align="center"><small>Multiselect control points</small></figcaption>
 </figure>
 
-Use the quad
-view keep an overview of the entire board while editing, or select the individual profile, outline and cross sections 
+Use the quad view to keep an overview of the entire board while editing, or select the individual profile, outline and cross sections 
 tabs for more detailed view with less visual noise. While editing the coordinates of the mouse is displayed in the
 top left corner of the view and the control point positions are updated in control point info.
 While editing you can zoom using the zoom mode in the tool bar and dragging a box around the area you want to zoom on,
@@ -94,7 +93,7 @@ Use CTRL S to save the board.
 
 
 ### Editing using control point info
-(more precise) or input the exact coordinate in
+Exact coordinates can be input the exact coordinate in
 the respective text boxes (in the lower, right corner) and
 click the set button.
 
