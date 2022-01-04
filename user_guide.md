@@ -24,7 +24,8 @@ For more general information about the project and contributing see [contribute]
 # EDITING
 The outline, rocker and cross sections are defined using composite bezier curves. 
 The curves consist of bezier curve segments which are defined by the blue end points
-and the yellow and red control points which define the shape of the segment. The endpoints
+which the composite curve passes through and the yellow and red tangent control points which define 
+the direction and 'velocity' of the curve at the endpoints and thus the shape of the segment. The endpoints
 can be set to continous using the control point info, this ensures that the tangents of the previous 
 segment and the next have the same direction making the curve smooth across the control point.
 
@@ -33,7 +34,6 @@ segment and the next have the same direction making the curve smooth across the 
   <figcaption align="center"><small>Control points</small></figcaption>
 </figure>
 
-## Editing curves
 There are three different ways to edit the curves: mouse, keyboard and through the control point info
 user interface.
 
