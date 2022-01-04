@@ -91,10 +91,20 @@ Press B to toggle deck/bottom/both in the profile view
 Use CTRL Z and Y to undo and redo editing.
 Use CTRL S to save the board.
 
-| Syntax | Description |
-| ----------- | ----------- |
-| Header | Title |
-| Paragraph | Text |
+| Hotkeys | Function |
+| ----------------------------------------- | ------------------------------------------ |
+| arrow keys, A S D F | Move control point |
+| E R | Extend and Retract tangent |
+| Q W | Rotate tangent clockwise / counterclockwise |
+| ALT | Fine adjustment |
+| H | Hide / show control points |
+| < | Cycle yellow / blue / red control points|
+| C | Cycle control points of composite curve |
+| + - | Cycle cross sections |
+| B | Cycle deck / bottom /both |
+| CTRL Z CTRL Y | Undo / Redo |
+| CTRL S | Save board |
+
 
 
 ### Editing using control point info
