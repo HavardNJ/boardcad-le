@@ -91,6 +91,11 @@ Press B to toggle deck/bottom/both in the profile view
 Use CTRL Z and Y to undo and redo editing.
 Use CTRL S to save the board.
 
+| Syntax | Description |
+| ----------- | ----------- |
+| Header | Title |
+| Paragraph | Text |
+
 
 ### Editing using control point info
 Exact coordinates can be input the exact coordinate in
