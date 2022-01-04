@@ -30,12 +30,7 @@ segment and the next have the same direction making the curve smooth across the 
 
 <figure>
   <img src="./images/Control points.png" alt="Control points">
-  <figcaption align = "center">Control points</figcaption>
-</figure>
-
-<figure>
-![Control points](./images/Control points.png?raw=true)
-<figcaption align = "center"><small>Control points</small></figcaption>
+  <figcaption align = "center"><small>Control points</small></figcaption>
 </figure>
 
 ## Editing curves
@@ -48,7 +43,11 @@ Multiple control points can be selected by either dragging a box around them or 
 while selecting multiple blue control points. Moving multiple control points can be useful f.ex. to 
 maintain the same outline curve when adjusting the width of a board, maintaining the rail shape when 
 adding concave or vee or maintaining nose and tail thickness when adjusting rocker. 
-![Multiselect](./images/multiselect.png?raw=true)
+
+<figure>
+  <img src="./images/multiselect.png" alt="Multiselect">
+  <figcaption align = "center"><small>Multiselect control points</small></figcaption>
+</figure>
 
 Use the quad
 view keep an overview of the entire board while editing, or select the individual profile, outline and cross sections 
