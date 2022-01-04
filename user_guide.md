@@ -28,7 +28,10 @@ and the yellow and red control points which define the shape of the segment. The
 can be set to continous using the control point info, this ensures that the tangents of the previous 
 segment and the next have the same direction making the curve smooth across the control point.
 
+<figure>
 ![Control points](./images/Control points.png?raw=true)
+<figcaption align = "center"><small>Control points</small></figcaption>
+</figure>
 
 ## Editing curves
 There are three different ways to edit the curves: mouse, keyboard and through the control point info
