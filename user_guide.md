@@ -27,6 +27,7 @@ The curves consist of bezier curve segments which are defined by the blue end po
 and the yellow and red control points which define the shape of the segment. The endpoints
 can be set to continous using the control point info, this ensures that the tangents of the previous 
 segment and the next have the same direction making the curve smooth across the control point.
+
 <figure>
   <img src="./images/Control points.png" alt="Control points">
   <figcaption align = "center">Control points</figcaption>
