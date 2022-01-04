@@ -105,62 +105,54 @@ Use CTRL S to save the board.
 | CTRL Z CTRL Y | Undo / Redo |
 | CTRL S | Save board |
 
+### Setting position from control point info
+Exact coordinates can be in the respective edit boxes in control point info in the lower, 
+right corner. This can be useful if you want to set a control point exactly to measurements,
+or f.ex. want two control points to have the same vertical position. 
+Click the set button to apply the values.
 
-
-### Editing using control point info
-Exact coordinates can be input the exact coordinate in
-the respective text boxes (in the lower, right corner) and
-click the set button.
-
-### Input values
-Inputs that take measurements can take the various formats
-regardless of the selected unit f.ex imperial (ex. 6'10" or 3 1/4"), meters (ex.
-0.5m), centimeters (ex. 50.5cm), or millimeters (ex. 2200mm).
-If no unit is specified, the current unit will be used. For imperial 
-the input value will be inches.
-
-
-### Other useful features
-* There is a sliding info bar for measurements at any given
-point along the length of the board. In it, you can also show
-over curve measurements which makes it possible to get
-accurate measurements at any given point over the bottom
-curve. Very useful to get measurements as exactly as
-possible as it's hard to measure on the actual blank unless
-you measure over the bottom curve. On the other hand, if
-you look at these measurement with regards to the x
-position the difference is not that big.
-* You can view the curvature of the board to ensure that the
-curve is smooth. In particular around a control point the
-curvature graph may be discontinous. This may be visible in
-a cut board or a template. The curvature graph can also be
-used to analyze the curves beyond what is otherwise
-possible visually. Note that the sliding info for bottom shows
-the radius of the curvature at any point which is also useful
-for analyzing the curvature of the rocker. Curvature can be
-compared between boards by loading a ghost board, when G
-is pressed the curvature of both the current board and the
-ghost board are shown (if 'show curvature' is selected).
-* If you have zoomed in close and want to see how your
-changes affect the greater picture, you can click the spot
-check button or space bar to view the entire board, when
-you let go it returns to the previous zoom.
-
-## SETTING
-### Preferences
-BoardCAD is intended to be used by anyone who is
-interested in designing surfboards. Different
-users have different needs and preferences. BoardCAD is
-configurable and you can control
-the visual apperance of the board models and what
-design aids you'd like to be present on the screen. BoardCAD also support different languages.
-
-### Design aids
+# Design aids
 Under the View-menu you'll find a list of different design
 aids that can be switched on and off. While all are useful,
 having all visible at the same time clutter the
-workspace creating visual noise and make it difficult to edit the board. Most
-of the aids are easy to understand:
+workspace creating visual noise and make it difficult to edit the board. 
+
+When designing a new board it is common to get some
+inspiration from other designs, by copying for example the
+outline, or just comparing the current design with other
+designs. Depending on what you have at hand, this can be
+done in different ways. If you already have the model of the
+other board you can load the board and show it in the
+background as a Ghost board. If you have the physical
+board you can take take measurements and add those
+as guide points. If you have a picture of the board you can use that
+as a template by displaying the picture in the background.
+
+### Ghost board
+A ghost board can be loaded in the background to compare
+designs. The ghost board can be scaled to the same size as the
+current board using the command "scale ghost to current board size" in the board. 
+The ghost board can be moved by holding down G
+(brings it into focus) and using the arrow keys, and 
+rotated using the Q an W hotkeys. This makes it possible
+to use the ghost board much like a physical template.
+
+### Background image
+A background image can be loaded in every view. The background image
+can be positioned by holding down T and clicking on the tail of the image, 
+and holding down N and clicking on the nose of the image.
+
+### Guide points
+Guidepoints can be added by clicking the "Add guide point
+button" and directly insert the point in the selected view by
+clicking, or you can open the Guide points table either via the
+Board menu or the right click menu. Once the table
+is open you can directly edit any existing guide points by
+double clicking. By right clicking the mouse you can choose
+to add new guide points via (x,y) coordinates or you can
+ remove highlighted guidepoints.
+
+
 - Shows a grid in the background. Depending on
 whether the unit is set to metrics or imperial, the distance
 between each grid-line is set to 1 cm or 1 inch respectively.
@@ -236,6 +228,49 @@ flat. This is especially useful when comparing the rail of the
 - Let you set the color of the board model and the
 different design aids.
 
+### Input values
+Inputs that take measurements can take the various formats
+regardless of the selected unit f.ex imperial (ex. 6'10" or 3 1/4"), meters (ex.
+0.5m), centimeters (ex. 50.5cm), or millimeters (ex. 2200mm).
+If no unit is specified, the current unit will be used. For imperial 
+the input value will be inches.
+
+
+### Other useful features
+* There is a sliding info bar for measurements at any given
+point along the length of the board. In it, you can also show
+over curve measurements which makes it possible to get
+accurate measurements at any given point over the bottom
+curve. Very useful to get measurements as exactly as
+possible as it's hard to measure on the actual blank unless
+you measure over the bottom curve. On the other hand, if
+you look at these measurement with regards to the x
+position the difference is not that big.
+* You can view the curvature of the board to ensure that the
+curve is smooth. In particular around a control point the
+curvature graph may be discontinous. This may be visible in
+a cut board or a template. The curvature graph can also be
+used to analyze the curves beyond what is otherwise
+possible visually. Note that the sliding info for bottom shows
+the radius of the curvature at any point which is also useful
+for analyzing the curvature of the rocker. Curvature can be
+compared between boards by loading a ghost board, when G
+is pressed the curvature of both the current board and the
+ghost board are shown (if 'show curvature' is selected).
+* If you have zoomed in close and want to see how your
+changes affect the greater picture, you can click the spot
+check button or space bar to view the entire board, when
+you let go it returns to the previous zoom.
+
+## SETTING
+
+### Preferences
+BoardCAD is intended to be used by anyone who is
+interested in designing surfboards. Different
+users have different needs and preferences. BoardCAD is
+configurable, you can adjust colors, line thickness, look and feel
+and turn features on and off. BoardCAD also support different languages.
+
 ### Choosing Bezier interpolation
 It is possible to configure how the cross sections are
 interpolated in the Bezier model. This affects the form of
@@ -253,40 +288,6 @@ BoardCAD. This is done under the menu Misc, Language.
 Currently six languages are supported: English, French,
 Portuguese, Spanish, Norwegian, and Dutch. You will need
 to restart BoardCAD for the changes to appear.
-
-When designing a new board it is common to get some
-inspiration from other designs, by copying for example the
-outline, or just comparing the current design with other
-designs. Depending on what you have at hand, this can be
-done in different ways. If you already have the model of the
-other board you can load the board and show it in the
-background as a Ghost board. If you have the physical
-board you can take take measurements and add those
-as guide points. If you have a picture of the board you can use that
-as a template by displaying the picture in the background.
-
-### Ghost board
-A ghost board can be loaded in the background to compare
-designs. The ghost board can be moved by holding down G
-(brings it into focus) and using the arrow keys.
-The ghost board can also be scaled to the same size as the
-current board using the command in the board menu. Ghost boards
-can be rotated using the Q an W hotkeys.
-
-### Guide points
-You can add guidepoints by clicking the Add guide point
-button and directly insert the point in the 'board area' by
-clicking. You can also open the Guide points table either via the
-Board menu or via Right click of the mouse. Once the table
-is open you can directly edit any existing guide points by
-double clicking. By right clicking the mouse you can choose
-to add new guide points via (x,y) coordinates or you can
-choose to remove any highlighted guidepoints.
-
-### Background image
-A background image can be loaded in every view. This is
-positioned by holding down T and clicking on the tail of the image, 
-and holding down N and clicking on the nose.
 
 ## PRINTING
 Board templates can be printed in full scale. In addition
