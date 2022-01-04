@@ -67,43 +67,31 @@ When editing cross sections you can select different cross sections by clicking 
 Cross sections can be added, moved and removed from the right click menu. You can also copy and paste cross sections. If you intend
 to have the board CNC'd using other software than boardCAD you should take particular care of not moving control point too extreme
 between cross sections and keeping the same number of control points on each cross section.
+Undo/redo can be done on every change you make to the curves. The number of operations you can undo is only
+limited by available memory.
 
 ### Editing using the keyboard
-You can move the selected control point with the keyboard
-arrow keys . To make a tangent longer press E
-(extend), to make it shorter press R (retract). To rotate the
+There are numerous ways to edit the control points using the keyboard.
+You can move the selected control point with the
+arrow keys and A(left), S(right), D(up) and F(down). You can press once to
+nudge the control point or hold the key down for larger movements.
+To make a tangent longer press E
+(extend), make it shorter by pressing R(retract). To rotate the
 control point clockwise press W, to rotate it counterclockwise press Q.
-By holding down the ALT key you make every editing
-operation 1/10th of normal operation. This gives you good
-precision even when dragging the points with the mouse.
-By clicking while holding down Ctrl or Shift, or by clicking
-and dragging a rectangle box around the points you can
-select multiple center points that can be moved all together
-with the mouse or moved by steps with the keyboard arrow
-keys (this is useful for adjusting the rocker without changing
-the thickness at the nose tip and tail tip) In the Deck View
-select all nose and/or tail control points and drag/move. It's
-also useful for adding vee's or concaves without distorting
-the rail shape, select all the center points of the rail and
-move them together.
-The "h" key hides/shows the control points.
-Use the < key to cycle through the tangents and center
-point of a control point. Use the c key to cycle through the
-control points of a curve.
-Click add point to go to add point mode. Click on the curve
-to add a control point to the curve. The curve will not
-change. Click delete point to delete the selected points.
-Undo/redo can be done on every change you make to the
-curves. The number of operations you can undo is only
-limited by available memory.
-Pan and zoom by selecting the pan and zoom mode clicking
-on the respective buttons. To go back to edit mode (for
-selecting control points), press the edit button in the toolbar
-or in the right click pop-up menu , or even hit "Esc" on the
-keyboard. You can also pan by holding the mouse scroll
-wheel button (very useful!) and dragging the board.
-Spinning the mouse wheel zooms in and out when in edit
-mode.
+By holding down the ALT key you can make fine adjustments as every editing
+operation 1/10th of normal movement. Holding down ALT can also be combined 
+with mouse editing for fine precision when dragging the points with the mouse.
+The H key hides/shows the control points to view the curve without the noise of
+the control points.
+Press the < key to cycle through the tangents and endpoint
+point (yellow, blue and red) at a location. 
+Press the C key to cycle through the control points of a curve.
+Control points can be deleted using the delete key.
+Press +/- to cycle through cross sections.
+Press B to toggle deck/bottom/both in the profile view
+Use CTRL Z and Y to undo and redo editing.
+Use CTRL S to save the board.
+
 
 ### Editing using control point info
 (more precise) or input the exact coordinate in
