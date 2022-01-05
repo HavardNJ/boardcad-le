@@ -136,6 +136,10 @@ The ghost board can be moved by holding down G
 (brings it into focus) and using the arrow keys, and 
 rotated using the Q an W hotkeys. This makes it possible
 to use the ghost board much like a physical template.
+<figure>
+  <img src="./images/ghost.png" alt="Multiselect">
+  <figcaption align="center"><small>Ghost shortboard on longboard</small></figcaption>
+</figure>
 
 ### Background image
 A background image can be loaded in every view. The background image
