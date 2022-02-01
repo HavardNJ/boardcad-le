@@ -156,6 +156,10 @@ double clicking. By right clicking the mouse you can choose
 to add new guide points via (x,y) coordinates or you can
  remove highlighted guidepoints.
 
+<figure>
+  <img src="./images/under_construction_s.svg" alt="Under construction">
+  <figcaption align="center"><small>Currently under construction</small></figcaption>
+</figure>
 
 - Shows a grid in the background. Depending on
 whether the unit is set to metrics or imperial, the distance
