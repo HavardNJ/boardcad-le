@@ -265,10 +265,7 @@ for analyzing the curvature of the rocker. Curvature can be
 compared between boards by loading a ghost board, when G
 is pressed the curvature of both the current board and the
 ghost board are shown (if 'show curvature' is selected).
-* If you have zoomed in close and want to see how your
-changes affect the greater picture, you can click the spot
-check button or space bar to view the entire board, when
-you let go it returns to the previous zoom.
+
 
 ## SETTING
 
@@ -320,6 +317,10 @@ the paper feeding mechanism being inaccurate. It is
 recommended that you check the accuracy against the grid 
 where each square should be an inch.
 
+### Printing sandwich templates
+
+### Printing HWS templates
+
 ## EXPORTING MODELS
 BoardCAD supports exporting to
 several different file format. The board can be exported in
@@ -353,23 +354,18 @@ AutoCAD and other programs.
 DXF-files can be exported 2D for the outline, rocker,
 and cross sections for creating templates.
 
-## GENERATING AND EXPORTING G-CODE
+## CNC
 <figure>
   <img src="./images/Under_construction.svg" alt="Under construction" width="200" height="200">
   <figcaption align="center"><small>Currently under construction</small></figcaption>
 </figure>
 
+### CNC Dialog
 
 ### Generating deck cuts
-<figure>
-  <img src="./images/Under_construction.svg" alt="Under construction" width="200" height="200">
-  <figcaption align="center"><small>Currently under construction</small></figcaption>
-</figure>
-
 
 ### Generating bottom cuts
-<figure>
-  <img src="./images/Under_construction.svg" alt="Under construction" width="200" height="200">
-  <figcaption align="center"><small>Currently under construction</small></figcaption>
-</figure>
 
+### Templates
+
+### HWS
