@@ -157,7 +157,7 @@ to add new guide points via (x,y) coordinates or you can
  remove highlighted guidepoints.
 
 <figure>
-  <img src="./images/Under_construction.svg" alt="Under construction" width="400" height="400">
+  <img src="./images/Under_construction.svg" alt="Under construction" width="200" height="200">
   <figcaption align="center"><small>Currently under construction</small></figcaption>
 </figure>
 
@@ -291,8 +291,8 @@ interpolation is more reliable when different number of control
 points are used.
 
 ### Setting language
-It is possible to change the language of the menus in
-BoardCAD. This is done under the menu Misc, Language.
+The language of the menus in
+BoardCAD can be changed under the menu Misc, Language.
 Currently six languages are supported: English, French,
 Portuguese, Spanish, Norwegian, and Dutch. You will need
 to restart BoardCAD for the changes to appear.
@@ -321,51 +321,26 @@ recommended that you check the accuracy against the grid
 where each square should be an inch.
 
 ## EXPORTING MODELS
-One of the strength of BoardCAD is the possibility to
-exchange the board models with third party commercial
-CAD/CAM-systems. From version 2.0 we even base our
-native file format on STEP. This means that our board
-models can now be read directly by most CAD-systems
-without the need for exporting the board model. However,
-while STEP is an international standard it is still not
-supported by all systems. BoardCAD therefore support
+BoardCAD supports exporting to
 several different file format. The board can be exported in
-3D in the formats step, dxf and stl to be cut by most
-standard CNC machines. To export in these formats you
-need to convert the board to 3D first. The board profile and
+3D in the formats stl to be cut by most
+standard CNC machines. This is not neccesary for surfboard
+specific cutting services as they will be able to cut from 
+a .brd file.
+The board profile and
 template can also be exported in two different dxf formats
 to be used for cutting foam block with a hotwire cutter or
-cutting templates. Here we give a short introduction to the
-different formats and what is included in each of them in
-order to understand their strenghs and limitations.
-
-### STEP
-STEP (ISO 10303 - STandard for the Exchange of Product
-models) is an international standard for exchanging CAD
-data. This is a very large standard including not only the
-geometry model, but also large amounts of meta-data. Due
-to the large size, the STEP standard is divided into several
-APs (Application Protocols). The geometry data is defined in
-AP42, but most CAD-system implements AP203
-(Configuration Controlled Design) and AP214 (Automotive
-Design).
-BoardCAD exports models based on AP203. The exported
-model include Bezier curves for outline, rocker, and cross
-sections, as well as well nurbs surfaces for the 3D-model.
-Most CAD-systems will read the files, but in many cases
-only the 3D-model will be shown.
+cutting templates.
 
 ### STL
 STL is a file format native to the stereolithography CAD
 software created by 3D Systems. This file format is
-supported by many other software packages; it is widely
+supported by many other software packages and is widely
 used for rapid prototyping and computer-aided
 manufacturing. An STL file describes a raw unstructured
-triangulated surface. For BoardCAD this means that the
-orginal Bezier curves and nurbs surfaces cannot be
-described. Instead a triangulated model of the board is
-exported, i.e. the nurbs surfaces are converted into lots of
-small triangles. This makes the model very hard to edit
+triangulated surface, a triangulated model of the board is
+exported, i.e. the surfaces are converted into lots of
+small triangles. This makes the model hard to edit
 when imported in another CAD-system. However, as long as
 the model will not be edited further the triangulated models
 work fine.
@@ -375,92 +350,26 @@ AutoCAD DXF (Drawing Interchange Format, or Drawing
 Exchange Format) is a CAD data file format developed by
 Autodesk for enabling data interoperability between
 AutoCAD and other programs.
-With DXF, the 3D-model is limited to triangulated surfaces,
-just like in an STL-file, an therefore not suited for further
-editing.
-Apart from the 3D-model, DXF-files can also export 2D
-Bezier curves. This is useful for exporting the outline, rocker,
+DXF-files can be exported 2D for the outline, rocker,
 and cross sections for creating templates.
 
 ## GENERATING AND EXPORTING G-CODE
-With the release of version 2.0, BoardCAD does not only
-include full support for CAD (Computer Aided Design), but
-also for CAM (Computer Aided Manufacturing). BoardCAD
-can be configured to work with most types of 3-axis and 4-
-axis CNC machines (see Appendix A for instructions on how
-to configure your machine). This chapter gives step by step
-instructions on how to generate the G-code that controls the
-CNC-machine. All operations are done on the 3D-model and
-does not work with Bezier-models. If your boards or blanks
-are saved as .brd-files they should first be converted to
-NURBS-models and saved with .stp or .cad extension.
-G-code is generated separately for the deck and for the
-bottom. You can start either by cutting the deck or by
-cutting the bottom. Here we start by cutting the deck.
-10.1 Placing board model inside the
-blank
-First we open our blank model. The blank model is just like
-any board model and is open through the File menu, Open
-board.
-It is important to verify that the X-position of the blank
-model corresponds to the X-position of real blank in the
-machine. The routine for how to do this may differ slightly
-between different machines. However, all machines have an
-X-position that corresponds to X=0 in BoardCAD and that
-should be clearly marked (in Appendix A we show exactly
-how to setup this point). Now, if the blank is placed 100 mm
-in front of this point, but the blank model is placed at X=0,
-we need to translate the blank model to X=100 mm. This is
-done with the "Translate X" in the 3D-menu, under the
-submenu Transform.
-Personally I've premarked the position of each blank size in
-the machine, and saved all my blank models in the correct
-position, in order to minimize the work.
-Now let's assume that the blank model is already in the
-correct X-position. The blank is like any board model in
-BoardCAD, so the first thing we have to do is to tell
-BoardCAD that this model should be used as our blank. This
-is done by selecting "Set as blank" in the 3D-menu. When
-doing this the model will disappear from the workspace. To
-see the blank you have to right click the mouse in
-workspace and choose "view blank" in the popup menu.
-Next we load the board that we want to cut. The board
-model must be placed inside the blank. This can easiest be
-done in the profile view. Use the commands "flip board",
-"translate x", "translate y", and "rotate" in the 3D menu to
-move the board model. One useful trick when rotating a
-board is to mark a control point in the board model that the
-board will rotate around. If no control point is marked the
-board will rotate around origo. Once you have positioned the
-board inside the blank it is good practise to save the model
-so you don't have to do this again if you want to cut the
-same board using the same blank in the future.
+<figure>
+  <img src="./images/Under_construction.svg" alt="Under construction" width="200" height="200">
+  <figcaption align="center"><small>Currently under construction</small></figcaption>
+</figure>
+
 
 ### Generating deck cuts
-While we have already made sure that the horizontal
-position of the blank model corresponds to the horizontal
-position of the real blank in the machine, the same has to
-be done with the vertical position. This is done with the
-funcion "Place blank" in the 3D menu. This function will read
-the position of the blank supports from the machine
-configuration and move the blank, and the board inside the
-blank, until the blank rests on the supports. Now we can
-generate the cutting paths for the deck. This is done by
-choosing File, G-code, Nurbs to Gcode deck. Enter the file
-name for the cutting paths. While the file itself contains
-plain text, different machine controllers look for different file
-extensions. For example, machine controllers based on
-Linux CNC want the file name to end with the extension
-.ngc, so here we name the file deck.ngc.
-We can visualize the cutting paths by marking "View deck
-cuts" in the popup menu.
+<figure>
+  <img src="./images/Under_construction.svg" alt="Under construction" width="200" height="200">
+  <figcaption align="center"><small>Currently under construction</small></figcaption>
+</figure>
+
 
 ### Generating bottom cuts
-Generating tool paths for the other side of the board is easy.
-All we need to do is to choose "Flip board" in the 3D menu,
-followed by "Place board". This turns the board and make
-sure it is correctly placed on the machine supports. We are
-now ready to generate g-code by selecting File, G-code,
-Nurbs to Gcode bottom. We name the file bottom.ngc. Again
-we can visualize the cutting paths by marking "View bottom
-cuts" in the popup menu.
+<figure>
+  <img src="./images/Under_construction.svg" alt="Under construction" width="200" height="200">
+  <figcaption align="center"><small>Currently under construction</small></figcaption>
+</figure>
+
