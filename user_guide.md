@@ -157,7 +157,7 @@ to add new guide points via (x,y) coordinates or you can
  remove highlighted guidepoints.
 
 <figure>
-  <img src="./images/under_construction.svg" alt="Under construction" width="400" height="400">
+  <img src="./images/Under_construction.svg" alt="Under construction" width="400" height="400">
   <figcaption align="center"><small>Currently under construction</small></figcaption>
 </figure>
 
