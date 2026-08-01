@@ -1,0 +1,159 @@
+{
+  "planPath": "docs/superpowers/plans/2026-08-01-boardcad-web-shaping.md",
+  "tasks": [
+    {
+      "id": 0,
+      "subject": "Task 0: Project scaffolding",
+      "status": "pending",
+      "description": "**Goal:** Vite+React+TS project at webapp/ with Vitest and Three.js deps, npm run dev/test/build all work.\n\n```json:metadata\n{\"files\": [\"webapp/vitest.config.ts\", \"webapp/package.json\", \"webapp/src/core/.gitkeep\", \"webapp/src/app/.gitkeep\"], \"verifyCommand\": \"cd webapp && npm run build\", \"acceptanceCriteria\": [\"npm run dev starts without error\", \"npm test exits 0 with no tests found\", \"three/@react-three/fiber/@react-three/drei in dependencies\", \"vitest in devDependencies\"]}\n```"
+    },
+    {
+      "id": 1,
+      "subject": "Task 1: core/bezier — VecMath and MathUtils",
+      "status": "pending",
+      "blockedBy": [0],
+      "description": "**Goal:** Port VecMath and MathUtils.RootFinder (secant+bisect) to core/bezier.\n\n```json:metadata\n{\"files\": [\"webapp/src/core/bezier/point.ts\", \"webapp/src/core/bezier/vecMath.ts\", \"webapp/src/core/bezier/rootFinder.ts\"], \"verifyCommand\": \"cd webapp && npx vitest run src/core/bezier/vecMath.test.ts src/core/bezier/rootFinder.test.ts\", \"acceptanceCriteria\": [\"vecMath matches VecMath.java incl. NaN->0 guard\", \"rootFinder matches MathUtils.RootFinder\"]}\n```"
+    },
+    {
+      "id": 2,
+      "subject": "Task 2: core/bezier — BezierKnot",
+      "status": "pending",
+      "blockedBy": [1],
+      "description": "**Goal:** Port BezierKnot: endpoint+2 tangents, masks, tangent locks, slave link, continuity.\n\n```json:metadata\n{\"files\": [\"webapp/src/core/bezier/bezierKnot.ts\"], \"verifyCommand\": \"cd webapp && npx vitest run src/core/bezier/bezierKnot.test.ts\", \"acceptanceCriteria\": [\"points is 3-tuple matching Java index convention\", \"setControlPointLocation masks + propagates to slave\", \"tangent setters apply lock clamping\", \"clone deep-copies points, keeps slave reference as-is\"]}\n```"
+    },
+    {
+      "id": 3,
+      "subject": "Task 3: core/bezier — BezierCurve",
+      "status": "pending",
+      "blockedBy": [2],
+      "description": "**Goal:** Port BezierCurve subset: cubic evaluation, length, t-for-x, closest-point, de Casteljau split, min/max. Tangent/curvature/normal methods NOT ported (unused in v1 scope).\n\n```json:metadata\n{\"files\": [\"webapp/src/core/bezier/bezierCurve.ts\"], \"verifyCommand\": \"cd webapp && npx vitest run src/core/bezier/bezierCurve.test.ts\", \"acceptanceCriteria\": [\"straight curve evaluates at geometric midpoint\", \"getTForX round-trips\", \"getLength matches endpoint distance for straight curve\", \"getSplitControlPoint(0.5) matches getValue(0.5)\", \"getClosestT finds t near 0.5\"]}\n```"
+    },
+    {
+      "id": 4,
+      "subject": "Task 4: core/bezier — BezierSpline",
+      "status": "pending",
+      "blockedBy": [3],
+      "description": "**Goal:** Port BezierSpline subset: control-point list mgmt, getValueAt, getPointByS (uniform arc-length), getSplitControlPoint, scale/translate/clone. Hit-testing NOT ported (moved to app/editor2d).\n\n```json:metadata\n{\"files\": [\"webapp/src/core/bezier/bezierSpline.ts\"], \"verifyCommand\": \"cd webapp && npx vitest run src/core/bezier/bezierSpline.test.ts\", \"acceptanceCriteria\": [\"append builds curves incrementally like Java\", \"getValueAt returns correct segment y\", \"getPointByS(0)/getPointByS(1) return endpoints\", \"getSplitControlPoint finds correct segment+index\", \"clone is a deep copy\"]}\n```"
+    },
+    {
+      "id": 5,
+      "subject": "Task 5: core/bezier — BezierFit",
+      "status": "pending",
+      "blockedBy": [4],
+      "description": "**Goal:** Port BezierFit.bestFit (least-squares cubic fit) using a local matrix helper instead of the ujmp Java dependency.\n\n```json:metadata\n{\"files\": [\"webapp/src/core/bezier/matrix.ts\", \"webapp/src/core/bezier/bezierFit.ts\"], \"verifyCommand\": \"cd webapp && npx vitest run src/core/bezier/matrix.test.ts src/core/bezier/bezierFit.test.ts\", \"acceptanceCriteria\": [\"invert(A)*A approx identity\", \"bestFit recovers control points sampled from a known curve\", \"bestFit fits near-straight line for collinear points\"]}\n```"
+    },
+    {
+      "id": 6,
+      "subject": "Task 6: core/board — Board model and basic accessors",
+      "status": "pending",
+      "blockedBy": [5],
+      "description": "**Goal:** Port Board data model (outline/deck/bottom/crossSections/metadata) and basic accessors (length, widthAt, rockerAt, deckAt, thicknessAt, maxWidth/Thickness). CAM/machine fields and mass/volume calcs dropped.\n\n```json:metadata\n{\"files\": [\"webapp/src/core/board/types.ts\", \"webapp/src/core/board/board.ts\"], \"verifyCommand\": \"cd webapp && npx vitest run src/core/board/board.test.ts\", \"acceptanceCriteria\": [\"newBoard has 2+ boundary cross-sections and positive length\", \"getWidthAtPos = outline.getValueAt(x)*2\", \"getThicknessAtPos = deck-bottom\", \"getMaxWidth derived from spline not stored\"]}\n```"
+    },
+    {
+      "id": 7,
+      "subject": "Task 7: core/board — cross-section interpolation and adjust helpers",
+      "status": "pending",
+      "blockedBy": [6],
+      "description": "**Goal:** Port BezierBoardCrossSection (scale/interpolate) and BezierBoard's getInterpolatedCrossSection/adjustCrosssectionsToThicknessAndWidth/adjustRockerToZero/onXChanged/scale.\n\n```json:metadata\n{\"files\": [\"webapp/src/core/board/crossSection.ts\", \"webapp/src/core/board/board.ts\"], \"verifyCommand\": \"cd webapp && npx vitest run src/core/board/crossSection.test.ts src/core/board/boardAdjust.test.ts\", \"acceptanceCriteria\": [\"getWidth/getCenterThickness match Java formulas\", \"scale no-ops below 0.1 guard\", \"interpolate(a,b,0)==a, interpolate(a,b,1)==b(scaled)\", \"getInterpolatedCrossSection null outside [0,length]\", \"adjustRockerToZero makes bottom minY==0\", \"scaleBoard pins last cross-section to new length\"]}\n```"
+    },
+    {
+      "id": 8,
+      "subject": "Task 8: core/surface — mesh builder",
+      "status": "pending",
+      "blockedBy": [7],
+      "description": "**Goal:** Build vertex/index buffers from a Board using uniform arc-length cross-section sampling (simplified vs Java's angle-weighted sampling), mirrored rings per length-position.\n\n```json:metadata\n{\"files\": [\"webapp/src/core/surface/surfaceMesh.ts\"], \"verifyCommand\": \"cd webapp && npx vitest run src/core/surface/surfaceMesh.test.ts\", \"acceptanceCriteria\": [\"(lengthSplits+1)*(2*crossSplits+1) vertices, no NaN/Infinity\", \"mirror symmetry across centerline\", \"indices.length == lengthSplits*2*crossSplits*6\", \"all indices within vertex range\"]}\n```"
+    },
+    {
+      "id": 9,
+      "subject": "Task 9: core/commands — BoardCommandHistory",
+      "status": "pending",
+      "blockedBy": [8],
+      "description": "**Goal:** Port BrdCommandHistory's linear undo/redo index semantics, storing whole-Board before/after snapshots instead of field diffs.\n\n```json:metadata\n{\"files\": [\"webapp/src/core/commands/commandHistory.ts\"], \"verifyCommand\": \"cd webapp && npx vitest run src/core/commands/commandHistory.test.ts\", \"acceptanceCriteria\": [\"execute truncates redo branch\", \"undo/redo move index and return snapshot, null past bounds\", \"canUndo/canRedo correct through execute->undo->redo->execute\"]}\n```"
+    },
+    {
+      "id": 10,
+      "subject": "Task 10: core/commands — command creators",
+      "status": "pending",
+      "blockedBy": [9],
+      "description": "**Goal:** Pure (board,...)=>Board command functions ported from BrdEditCommand/BrdAddControlPointCommand/BrdDeleteControlPointCommand/BrdFitCurveCommand/BrdAddCrossSectionCommand/BrdRemoveCrossSectionCommand. Includes the tricky continuity-mirror tangent-drag sign convention (endpoint-minus-tangent, preserving the other tangent's own length).\n\n```json:metadata\n{\"files\": [\"webapp/src/core/commands/splineRef.ts\", \"webapp/src/core/commands/editCommands.ts\"], \"verifyCommand\": \"cd webapp && npx vitest run src/core/commands/editCommands.test.ts\", \"acceptanceCriteria\": [\"continuity-mirror preserves opposite tangent's own length\", \"non-continuous knot: opposite tangent untouched\", \"addControlPointCommand keeps spline continuous through new knot\", \"deleteControlPointCommand refuses first/last, converges length within 0.1\", \"fitCurveFromGuidePointsCommand skips curves with no guide points in range\", \"add/removeCrossSectionCommand never touch boundary cross-sections\", \"scaleBoardCommand matches requested length/width/thickness\"]}\n```"
+    },
+    {
+      "id": 11,
+      "subject": "Task 11: core/persistence — JSON board format",
+      "status": "pending",
+      "blockedBy": [10],
+      "description": "**Goal:** New JSON save format (no .brd compat) with pure serialize/deserialize, no DOM APIs.\n\n```json:metadata\n{\"files\": [\"webapp/src/core/persistence/boardFile.ts\"], \"verifyCommand\": \"cd webapp && npx vitest run src/core/persistence/boardFile.test.ts\", \"acceptanceCriteria\": [\"round-trips length/width/rocker/cross-section-count/metadata/continuity\", \"deserializeBoard throws BoardFileError on malformed/wrong-version JSON\", \"slave links re-established via setLocks after load, not serialized\"]}\n```"
+    },
+    {
+      "id": 12,
+      "subject": "Task 12: app/state — board context, reducer, command dispatch",
+      "status": "pending",
+      "blockedBy": [11],
+      "description": "**Goal:** React context owning Board + BoardCommandHistory<Board>, exposing dispatch/undo/redo/canUndo/canRedo/resetBoard, plus Cmd/Ctrl+Z keyboard shortcuts (ignored while focus is in an editable element).\n\n```json:metadata\n{\"files\": [\"webapp/src/app/state/BoardStateContext.tsx\", \"webapp/src/app/state/useUndoRedoShortcuts.ts\", \"webapp/src/main.tsx\"], \"verifyCommand\": \"cd webapp && npm run build\", \"acceptanceCriteria\": [\"dispatch computes command, pushes to history, re-renders\", \"undo/redo update board and canUndo/canRedo\", \"resetBoard clears history\", \"Cmd/Ctrl+Z and Shift+Cmd/Ctrl+Z trigger undo/redo except in editable elements\"]}\n```"
+    },
+    {
+      "id": 13,
+      "subject": "Task 13: app/state — localStorage autosave and file save/open",
+      "status": "pending",
+      "blockedBy": [12],
+      "description": "**Goal:** Continuous debounced localStorage autosave (loaded on mount, corrupt entries ignored) plus explicit download/upload of a .json board file.\n\n```json:metadata\n{\"files\": [\"webapp/src/app/state/autosave.ts\", \"webapp/src/app/state/fileIO.ts\", \"webapp/src/app/state/BoardStateContext.tsx\"], \"verifyCommand\": \"manual: npm run dev, check localStorage key appears and reload survives\", \"acceptanceCriteria\": [\"valid autosave loads instead of newBoard() on mount\", \"board changes autosave debounced\", \"corrupt autosave falls back to newBoard()\", \"downloadBoardFile/readBoardFile round-trip\"]}\n```"
+    },
+    {
+      "id": 14,
+      "subject": "Task 14: app/editor2d — viewport transform and canvas rendering",
+      "status": "pending",
+      "blockedBy": [13],
+      "description": "**Goal:** Viewport (board-units<->screen-px) transform + SplineCanvas component drawing one BezierSpline via native ctx.bezierCurveTo (no sampling).\n\n```json:metadata\n{\"files\": [\"webapp/src/app/editor2d/viewport.ts\", \"webapp/src/app/editor2d/SplineCanvas.tsx\"], \"verifyCommand\": \"cd webapp && npm run build\", \"acceptanceCriteria\": [\"boardToScreen/screenToBoard are inverses\", \"fitViewport fits bbox with padding\", \"curve draws as one continuous path, no gaps\", \"selected point/handle renders in a distinct color\"]}\n```"
+    },
+    {
+      "id": 15,
+      "subject": "Task 15: app/editor2d — pointer interaction",
+      "status": "pending",
+      "blockedBy": [14],
+      "description": "**Goal:** Select/drag (live local preview, one command on pointer-up)/double-click-add/Delete-key-remove. Hit-testing implemented here (not ported from Java). Exports moveKnotTangent from editCommands.ts so drag-preview and the real command share one primitive.\n\n```json:metadata\n{\"files\": [\"webapp/src/core/commands/editCommands.ts\", \"webapp/src/app/editor2d/Editor2D.tsx\"], \"verifyCommand\": \"manual, once Task 20 lands: drag a point, release, Ctrl/Cmd+Z reverts\", \"acceptanceCriteria\": [\"click within ~8px selects closest point/handle, empty click clears\", \"drag updates local preview per pointer-move, exactly one command on pointer-up\", \"double-click adds control point at clicked position\", \"Delete/Backspace on selected endpoint deletes it\"]}\n```"
+    },
+    {
+      "id": 16,
+      "subject": "Task 16: app/editor2d — guide points and Bezier curve fitting",
+      "status": "pending",
+      "blockedBy": [15],
+      "description": "**Goal:** Guide-point mode (click to drop points, transient/not undoable) + Fit Curve / Clear buttons dispatching fitCurveFromGuidePointsCommand.\n\n```json:metadata\n{\"files\": [\"webapp/src/app/editor2d/SplineCanvas.tsx\", \"webapp/src/app/editor2d/Editor2D.tsx\"], \"verifyCommand\": \"manual, once Task 20 lands: place guide points, Fit Curve, confirm reshape + one-step undo\", \"acceptanceCriteria\": [\"mode toggle switches Edit vs Guide Points\", \"Fit Curve dispatches one command then clears guide points\", \"Clear empties list without dispatching\", \"guide points not persisted/undoable\"]}\n```"
+    },
+    {
+      "id": 17,
+      "subject": "Task 17: app/editor2d — view tabs and cross-section switcher",
+      "status": "pending",
+      "blockedBy": [16],
+      "description": "**Goal:** BoardEditorPanel: Outline/Deck/Bottom tabs (Deck+Bottom kept as separate tabs, not a combined profile view — scope simplification) + cross-section add/select/reposition/remove list.\n\n```json:metadata\n{\"files\": [\"webapp/src/app/editor2d/BoardEditorPanel.tsx\"], \"verifyCommand\": \"manual, once Task 20 lands\", \"acceptanceCriteria\": [\"tabs switch spline+splineRef+re-fit viewport\", \"Add Cross-Section inserts at midpoint and appears in list\", \"position input dispatches moveCrossSectionCommand, Remove dispatches removeCrossSectionCommand\", \"boundary cross-sections never listed/removable\"]}\n```"
+    },
+    {
+      "id": 18,
+      "subject": "Task 18: app/viewer3d — react-three-fiber 3D preview",
+      "status": "pending",
+      "blockedBy": [17],
+      "description": "**Goal:** BoardMesh (BufferGeometry from core/surface, axis remap to Three's Y-up, computeVertexNormals) + Viewer3D (Canvas, lights, OrbitControls).\n\n```json:metadata\n{\"files\": [\"webapp/src/app/viewer3d/BoardMesh.tsx\", \"webapp/src/app/viewer3d/Viewer3D.tsx\"], \"verifyCommand\": \"manual, once Task 20 lands\", \"acceptanceCriteria\": [\"geometry rebuilt via useMemo keyed on board\", \"normals computed via computeVertexNormals (no analytic port)\", \"scene renders lit, orbit-controllable board mesh\", \"board change visibly updates mesh\"]}\n```"
+    },
+    {
+      "id": 19,
+      "subject": "Task 19: app/dialogs — Board Settings dialog",
+      "status": "pending",
+      "blockedBy": [18],
+      "description": "**Goal:** Name/designer + length/width/thickness form dispatching scaleBoardCommand+updateMetadataCommand as one undo step.\n\n```json:metadata\n{\"files\": [\"webapp/src/app/dialogs/BoardSettingsDialog.tsx\"], \"verifyCommand\": \"manual, once Task 20 lands\", \"acceptanceCriteria\": [\"opens pre-filled from current board\", \"Save dispatches one command covering scale+metadata\", \"Cancel dispatches nothing\", \"re-open after Cancel shows current (unchanged) values\"]}\n```"
+    },
+    {
+      "id": 20,
+      "subject": "Task 20: App shell — wire everything together",
+      "status": "pending",
+      "blockedBy": [19],
+      "description": "**Goal:** Toolbar (New/Open/Save/Undo/Redo/Board Settings) + layout hosting BoardEditorPanel and Viewer3D. First fully usable end-to-end task; full manual smoke test.\n\n```json:metadata\n{\"files\": [\"webapp/src/App.tsx\", \"webapp/src/App.css\"], \"verifyCommand\": \"manual 7-step smoke test: drag+3D update, add/remove cross-section, guide-points fit, board settings rescale, 4x undo, save/reload/open, new\", \"acceptanceCriteria\": [\"New/Open/Save/Undo/Redo/Board Settings all reachable\", \"Undo/Redo buttons disabled per canUndo/canRedo\", \"invalid file open shows error, board unchanged\", \"BoardEditorPanel and Viewer3D reflect same board state\"]}\n```"
+    },
+    {
+      "id": 21,
+      "subject": "Task 21: Final verification pass and README",
+      "status": "pending",
+      "blockedBy": [20],
+      "description": "**Goal:** Confirm full core test suite + build pass after all app-layer work; write webapp/README.md documenting run instructions, core/app split, and the deliberate scope cuts.\n\n```json:metadata\n{\"files\": [\"webapp/README.md\"], \"verifyCommand\": \"cd webapp && npm test && npm run build\", \"acceptanceCriteria\": [\"npm test passes with zero failures\", \"npm run build passes with zero TS errors\", \"README documents run instructions, core/app split, and simplifications list\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-08-01T00:00:00Z"
+}
