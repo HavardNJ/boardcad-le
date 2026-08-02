@@ -14,6 +14,11 @@ function straightOutline(): BezierSpline {
   return s;
 }
 
+/**
+ * Builds a spline that is flat (constant y) *as constructed here* - see the NOTE on
+ * newBoard() below for why the deck/bottom pair built from this is not actually flat
+ * once the board's setLocks() runs.
+ */
 function flatSpline(y: number): BezierSpline {
   const s = new BezierSpline();
   s.append(new BezierKnot(0, y, 0, y, DEFAULT_LENGTH * 0.3, y));
@@ -30,6 +35,29 @@ function boundaryCrossSection(position: number): CrossSection {
   return { position, spline };
 }
 
+/**
+ * NOTE - "flat isn't flat": the deck/bottom pair built here (flatSpline(DEFAULT_THICKNESS)
+ * at constant y=6, flatSpline(0) at constant y=0) is NOT actually flat once setLocks()
+ * (called at the end of this function) runs its slave-sync step. deck and bottom don't
+ * share endpoints at the tail/nose as constructed, but setLocks() slave-links their
+ * tail/nose knots together as if they did. setSlave()/updateSlave() (see BezierKnot) snap
+ * the SLAVE's endpoint directly onto the MASTER's current endpoint (not offset by the
+ * delta), while shifting the slave's tangent HANDLES by that same delta. Concretely, for
+ * the tail knot: deck is the master at (x=0, y=6); bottom is the slave, starting at
+ * (x=0, y=0) with tangent handles also at y=0. yDiff = slave.y - master.y = 0 - 6 = -6.
+ * updateSlave then sets bottom's endpoint to (0, 6) (matching deck) but shifts bottom's
+ * tangent handles by yDiff to y = 0 + (-6) = -6 - i.e. bottom's tail knot ends up with
+ * control points {endpoint: 6, tangentToPrev: -6, tangentToNext: -6}, not a flat
+ * {6, 6, 6}. The same happens at the nose. Net result: deck stays flat at y=6, but bottom
+ * curves from y=6 at both tips down toward its (unmoved) middle control point at y=0, and
+ * getThicknessAtPos (deck - bottom) is 0 at both tips and bulges to ~9 at center - 50%
+ * over the nominal 6, not a gentle taper. This is provably non-negative (a cubic Bezier
+ * segment's value is bounded by its own control points' convex hull; bottom's control
+ * points here stay within [-6, 6] while deck is a flat 6, so thickness stays within
+ * [0, 12]), so the default board is still a valid, non-degenerate shape - just not
+ * literally "flat". See board.test.ts's setLocks-effects tests for the numeric bounds
+ * this relies on.
+ */
 export function newBoard(): Board {
   const board: Board = {
     name: 'New Board',
@@ -106,6 +134,7 @@ export function sortCrossSections(board: Board): void {
 export function setLocks(board: Board): void {
   if (board.outline.getNrOfControlPoints() < 2) return;
 
+  // Set masks
   const outlineLast = board.outline.getNrOfControlPoints() - 1;
   board.outline.getControlPoint(0).setMask(0, 0);
   board.outline.getControlPoint(outlineLast).setMask(0, 0);
@@ -124,11 +153,13 @@ export function setLocks(board: Board): void {
     cs.spline.getControlPoint(last).setMask(0, 1);
   }
 
+  // Set slaves
   board.deck.getControlPoint(0).setSlave(board.bottom.getControlPoint(0));
   board.deck.getControlPoint(deckLast).setSlave(board.bottom.getControlPoint(bottomLast));
   board.bottom.getControlPoint(0).setSlave(board.deck.getControlPoint(0));
   board.bottom.getControlPoint(bottomLast).setSlave(board.deck.getControlPoint(deckLast));
 
+  // Set locks
   for (let i = 0; i < board.outline.getNrOfControlPoints(); i++) {
     board.outline.getControlPoint(i).setTangentToPrevLocks(LOCK_X_LESS);
     board.outline.getControlPoint(i).setTangentToNextLocks(LOCK_X_MORE);
