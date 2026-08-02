@@ -42,4 +42,27 @@ describe('bestFit', () => {
     const fitted = bestFit(points);
     for (const p of fitted) expect(p.y).toBeCloseTo(0, 1);
   });
+
+  it('throws for 1-3 points (normal-equations matrix is rank-deficient)', () => {
+    expect(() => bestFit([{ x: 0, y: 0 }])).toThrow('matrix is singular');
+    expect(() => bestFit([{ x: 0, y: 0 }, { x: 1, y: 1 }])).toThrow('matrix is singular');
+    expect(() => bestFit([{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 2 }])).toThrow('matrix is singular');
+  });
+
+  it('throws for all-coincident points instead of silently returning NaN control points', () => {
+    const points: Point2D[] = [
+      { x: 5, y: 5 },
+      { x: 5, y: 5 },
+      { x: 5, y: 5 },
+      { x: 5, y: 5 },
+    ];
+    expect(() => bestFit(points)).toThrow('matrix is singular');
+  });
+
+  it('throws (a lower-level TypeError, not "matrix is singular") for zero points', () => {
+    // Documented as a distinct, less-clear failure mode in bestFit's doc comment — this
+    // test just locks in that it still throws rather than silently misbehaving, since
+    // callers are expected to filter empty guide-point lists before calling bestFit.
+    expect(() => bestFit([])).toThrow();
+  });
 });

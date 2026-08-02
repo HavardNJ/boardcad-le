@@ -39,7 +39,12 @@ export function invert(a: Matrix): Matrix {
     for (let row = col + 1; row < n; row++) {
       if (Math.abs(augmented[row][col]) > Math.abs(augmented[pivotRow][col])) pivotRow = row;
     }
-    if (Math.abs(augmented[pivotRow][col]) < 1e-12) {
+    // The !Number.isFinite check matters as much as the magnitude check: Math.abs(NaN)
+    // is NaN, and `NaN < 1e-12` is false, so a NaN-poisoned pivot (e.g. from dividing by
+    // a zero total path length upstream in bezierFit.ts) would otherwise sail through
+    // this guard and silently propagate NaN through the rest of the elimination instead
+    // of throwing here where the problem is easy to diagnose.
+    if (!Number.isFinite(augmented[pivotRow][col]) || Math.abs(augmented[pivotRow][col]) < 1e-12) {
       throw new Error('matrix is singular');
     }
     [augmented[col], augmented[pivotRow]] = [augmented[pivotRow], augmented[col]];
