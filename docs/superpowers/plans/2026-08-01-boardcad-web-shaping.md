@@ -113,7 +113,9 @@ git commit -m "Scaffold webapp/ with Vite, React, TypeScript, Vitest, Three.js"
 
 ## Task 1: core/bezier — VecMath and MathUtils
 
-**Goal:** Port `cadcore.VecMath` and the `MathUtils.RootFinder` (secant + bisect) used later by `BezierSpline`.
+**Goal:** Port `cadcore.VecMath` and the `MathUtils.RootFinder` (secant + bisect) that the Java `BezierSpline` uses for its angle/root-based queries.
+
+**Post-implementation note (added during Task 4):** `BezierSpline`'s methods that would have called `RootFinder.getRoot` (`getTTByX`, `getTTByNormal`, `getTTByLineIntersect`) were deliberately not ported in Task 4 — nothing else in this plan currently calls `rootFinder.getRoot`. It's kept anyway: it's a small, fully-tested, self-contained utility ported for fidelity with the Java `cadcore` package, and it's the natural place to add those spline queries later if a future iteration needs them (e.g. angle-weighted mesh sampling). Also: `MathUtils.java`'s `getRoot()` has a real bug at its bisect-fallback comparison (it evaluates the bisect candidate's error using the stale secant `x` instead of the new `bis_x`, so the Java original's bisect fallback can never actually be selected). The TypeScript port fixes this rather than reproducing it, since the function has no existing caller whose behavior would need to match Java bug-for-bug — see the comment in `rootFinder.ts`.
 
 **Files:**
 - Create: `webapp/src/core/bezier/point.ts`
@@ -124,7 +126,7 @@ git commit -m "Scaffold webapp/ with Vite, React, TypeScript, Vitest, Three.js"
 
 **Acceptance Criteria:**
 - [ ] `vecMath.ts` covers `length`, `sub`, `add`, `scale`, `normalize`, `dot`, `angleBetween`, `rotate` — matching `VecMath.java` behavior exactly (including the `NaN → 0` guard in `getVectorAngle`)
-- [ ] `rootFinder.ts` covers secant + bisect root finding matching `MathUtils.RootFinder`
+- [ ] `rootFinder.ts` covers secant + bisect root finding matching `MathUtils.RootFinder`'s intended behavior (see the post-implementation note above re: the bisect-fallback bug)
 
 **Verify:** `cd webapp && npx vitest run src/core/bezier/vecMath.test.ts src/core/bezier/rootFinder.test.ts` → all pass
 
