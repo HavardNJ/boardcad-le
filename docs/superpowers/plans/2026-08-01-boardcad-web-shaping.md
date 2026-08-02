@@ -771,12 +771,18 @@ describe('BezierCurve', () => {
     expect(t).toBeCloseTo(0.5, 1);
   });
 
-  it('recomputes coefficients when the underlying knot changes (dirty flag)', () => {
+  it('recomputes coefficients after setDirty() following a knot mutation', () => {
+    // Java's BezierCurve listens for knot changes (BezierKnotChangeListener.onChange)
+    // and auto-invalidates its cache; that observer pattern was deliberately not
+    // ported in Task 2 (see bezierKnot.ts's class doc) — this architecture clones
+    // the whole board per command instead, so callers must call setDirty() explicitly
+    // if they mutate a knot a curve has already cached coefficients for.
     const start = new BezierKnot(0, 0, 0, 0, 3.33, 0);
     const end = new BezierKnot(10, 0, 6.66, 0, 0, 0);
     const c = new BezierCurve(start, end);
     expect(c.getXValue(1)).toBeCloseTo(10, 1);
     end.setEndPoint(20, 0);
+    c.setDirty();
     expect(c.getXValue(1)).toBeCloseTo(20, 1);
   });
 });
@@ -1010,6 +1016,12 @@ export class BezierCurve {
     return length;
   }
 
+  // Two explicit overload signatures — restricts callers to exactly the 1-arg or
+  // 3-arg forms. The all-optional single-signature version silently mis-dispatches
+  // a 2-arg call into the 3-arg branch with lengthLeft as undefined; TS overloads
+  // catch that at compile time instead of producing NaN-driven behavior at runtime.
+  getTForLength(lengthLeft: number): number;
+  getTForLength(t0: number, t1: number, lengthLeft: number): number;
   getTForLength(lengthLeftOrT0: number, t1?: number, lengthLeft?: number): number {
     this.calculateCoeff();
     if (t1 === undefined) {
