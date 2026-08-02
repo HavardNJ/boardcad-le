@@ -76,4 +76,28 @@ describe('BezierSpline', () => {
     c.getControlPoint(0).points[0].x = 999;
     expect(s.getControlPoint(0).points[0].x).toBe(0);
   });
+
+  it('getMinX/getMaxY include the extremum when it falls in the LAST curve segment', () => {
+    // Two curves: the first (A->B) stays essentially flat along y=0 with x in [0,10].
+    // The second (B->C) swings out to x=-5, y=8 - both its minX and maxY are more extreme
+    // than anything in curve 1. A loop that skips the last curve (the bug this regression
+    // guards against) would only see curve 1 and report minX/maxY near 0; the fixed loop
+    // must see curve 2's true extrema.
+    const s = new BezierSpline();
+    s.append(new BezierKnot(0, 0, 0, 0, 3, 0));
+    s.append(new BezierKnot(10, 0, 7, 0, 10, 5));
+    s.append(new BezierKnot(-5, 8, -5, 5, -5, 8));
+
+    expect(s.getMinX()).toBeLessThan(0);
+    expect(s.getMaxY()).toBeGreaterThan(1);
+  });
+
+  it('getControlPoint returns null (not a throw) one past the last valid index', () => {
+    // 1-curve spline: valid control-point indices are 0 and 1. Index 2 is out of range and
+    // must return null gracefully, matching every other out-of-range index, rather than
+    // crashing on an out-of-bounds array access.
+    const s = straightSpline();
+    expect(() => s.getControlPoint(2)).not.toThrow();
+    expect(s.getControlPoint(2)).toBe(null);
+  });
 });

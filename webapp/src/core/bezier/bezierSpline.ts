@@ -58,8 +58,23 @@ export class BezierSpline {
     }
   }
 
+  /**
+   * Deliberate fix over Java's `BezierSpline.getControlPoint()` (`BezierSpline.java:101-104`),
+   * which guards with `mCurves.size() == 0 || mCurves.size() < i - 1`. That check only
+   * catches indices far out of range: for a 1-curve spline (`mCurves.size() == 1`),
+   * `getControlPoint(2)` computes `1 < 1` (false), falls through, and does
+   * `mCurves.get(i - 1)` = `mCurves.get(1)` - an out-of-bounds access that throws
+   * `IndexOutOfBoundsException` in Java / `TypeError` here, instead of returning null like
+   * every other out-of-range index does. Valid control-point indices are exactly
+   * `[0, curves.length]` (curves.length+1 control points when the spline is "closed" with
+   * a non-null last knot, or curves.length when the last curve is still dangling); this
+   * bounds the index directly against that range instead of reproducing Java's confusing
+   * and incomplete `size() < i - 1` check. No caller in this codebase currently exercises
+   * the crashing case, but it's a cheap, unambiguous fix worth making now rather than
+   * leaving a crash-on-reasonable-input trap for a later task.
+   */
   getControlPoint(i: number): BezierKnot {
-    if (this.curves.length === 0 || this.curves.length < i - 1) return null as unknown as BezierKnot;
+    if (this.curves.length === 0 || i < 0 || i > this.curves.length) return null as unknown as BezierKnot;
     return i === 0 ? this.curves[0].getStartKnot() : this.curves[i - 1].getEndKnot();
   }
 
@@ -114,27 +129,27 @@ export class BezierSpline {
   }
 
   /**
-   * NOTE on the asymmetric loop bound: this skips the LAST curve (`this.curves.length - 1`,
-   * not `this.curves.length`), while `getMaxX`/`getMinY` below iterate every curve. This is
-   * not a transcription slip - it faithfully matches `BezierSpline.java`'s `getMinX()`
-   * (loop `i < mCurves.size() - 1`) vs. `getMaxX()` (loop `i < mCurves.size()`), i.e. the
-   * asymmetry exists in the Java original too. For a spline with a single curve this loop
-   * never executes and `min` stays at the sentinel `Number.MAX_VALUE` - same behavior as
-   * Java, which returns `Double.MAX_VALUE` in that case. Nothing in this task's scope
-   * (control-point list management, getValueAt, getPointByS, getSplitControlPoint, scale/
-   * translate/clone) calls getMinX, so this is preserved as-is rather than "fixed"; flagged
-   * here for whichever later task first calls getMinX/getMaxY on a single-curve spline.
+   * Deliberate fix over Java's `BezierSpline.getMinX()` (`BezierSpline.java:304-317`), which
+   * loops `i < mCurves.size() - 1` - i.e. it skips the LAST curve entirely, while
+   * `getMaxX()`/`getMinY()` (above/below) correctly iterate every curve. Confirmed against
+   * the Java source directly: this asymmetry is a genuine bug there, not a transcription
+   * error. Unlike `rootFinder`'s preserved Java quirk (nothing downstream depended on it),
+   * this method's result feeds `getMaxWidth()`/`getMaxRocker()` (Task 6) which `scaleBoard`
+   * (Task 7) divides by - a wrong extremum here means wrong board scaling, not just a
+   * display glitch. Same reasoning as the `Math.abs` fix in `BezierCurve.getMinMaxNumerical`
+   * (Task 3): confirmed genuine Java bug, real downstream consumers, no reason to ship the
+   * buggy behavior. Fixed to iterate all curves, matching `getMaxX()`/`getMinY()`.
    */
   getMinX(): number {
     let min = Number.MAX_VALUE;
-    for (let i = 0; i < this.curves.length - 1; i++) min = Math.min(min, this.curves[i].getMinX());
+    for (const c of this.curves) min = Math.min(min, c.getMinX());
     return min;
   }
 
-  /** See getMinX's note above - same asymmetric (skip-last-curve) loop bound as Java's getMaxY(). */
+  /** Deliberate fix over Java's `BezierSpline.getMaxY()` - see getMinX's comment above for the full explanation (same skip-last-curve bug, same fix). */
   getMaxY(): number {
     let max = -Number.MAX_VALUE;
-    for (let i = 0; i < this.curves.length - 1; i++) max = Math.max(max, this.curves[i].getMaxY());
+    for (const c of this.curves) max = Math.max(max, c.getMaxY());
     return max;
   }
 
