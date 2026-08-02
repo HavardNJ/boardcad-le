@@ -1783,7 +1783,7 @@ Create `webapp/src/core/board/board.test.ts`:
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { newBoard, getLength, getWidthAtPos, getRockerAtPos, getDeckAtPos, getThicknessAtPos, getMaxWidth } from './board';
+import { newBoard, cloneBoard, getLength, getWidthAtPos, getRockerAtPos, getDeckAtPos, getThicknessAtPos, getMaxWidth } from './board';
 
 describe('board basic accessors', () => {
   it('newBoard has two boundary cross-sections and a positive length', () => {
@@ -1807,6 +1807,26 @@ describe('board basic accessors', () => {
   it('getMaxWidth is derived from the outline spline, not stored', () => {
     const b = newBoard();
     expect(getMaxWidth(b)).toBeCloseTo(b.outline.getMaxY() * 2, 6);
+  });
+
+  it('cloneBoard rebinds slave links so editing the clone does not affect the original', () => {
+    const b = newBoard();
+    const clone = cloneBoard(b);
+    const deckTailIndex = clone.deck.getNrOfControlPoints() - 1;
+    const bottomTailIndex = clone.bottom.getNrOfControlPoints() - 1;
+    const originalBottomTailY = b.bottom.getControlPoint(bottomTailIndex).points[0].y;
+
+    // setLocks() gives deck/bottom nose/tail endpoints xMask=0 (position along the
+    // board's length is locked; only thickness/y is user-editable) — so this must move
+    // y, not x, to actually exercise the slave link.
+    const deckTailKnot = clone.deck.getControlPoint(deckTailIndex);
+    deckTailKnot.setControlPointLocation(deckTailKnot.points[0].x, 999);
+
+    // The clone's bottom tail should have followed (slave rebound to the clone's own
+    // bottom knot, not the pre-clone one)...
+    expect(clone.bottom.getControlPoint(bottomTailIndex).points[0].y).toBeCloseTo(999, 3);
+    // ...but the ORIGINAL board's bottom tail must be untouched.
+    expect(b.bottom.getControlPoint(bottomTailIndex).points[0].y).toBeCloseTo(originalBottomTailY, 6);
   });
 });
 ```
