@@ -3058,6 +3058,11 @@ export function deleteControlPointCommand(board: Board, ref: SplineRef, knotInde
     const factor = targetLength / newLength;
     prev.scaleTangentToNext(factor);
     nextKnot.scaleTangentToPrev(factor);
+    // scaleTangentToNext/Prev mutate the knots directly; BezierCurve has no
+    // change-notification wiring to its knots, so the next getLength() call
+    // would otherwise return the stale pre-scale length forever, applying the
+    // same factor every iteration and diverging instead of converging.
+    prevCurve.setDirty();
   }
 
   notifyChanged(next, ref);
