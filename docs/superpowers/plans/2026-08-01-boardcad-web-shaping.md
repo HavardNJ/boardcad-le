@@ -1664,6 +1664,7 @@ git commit -m "Port BezierFit (least-squares curve fitting) to core/bezier"
 - [ ] `getLength(board)` returns the outline's max x
 - [ ] `getWidthAtPos`/`getRockerAtPos`/`getDeckAtPos`/`getThicknessAtPos` match the Java formulas (`outline.getValueAt(x)*2`, `bottom.getValueAt(x)`, `deck.getValueAt(x)`, `deck-bottom`)
 - [ ] `getMaxWidth`/`getMaxThickness` are computed from the splines, not stored
+- [ ] `cloneBoard` re-runs `setLocks` on the clone so `slave` links point at the *new* deck/bottom knots, not the pre-clone ones (`BezierKnot.clone()` copies `slave` by reference — see the comment on `cloneBoard`) — verify with a test that clones a board, moves the cloned deck's tail knot via `setControlPointLocation`, and confirms the cloned bottom's tail knot moved too (not the original board's)
 
 **Verify:** `cd webapp && npx vitest run src/core/board/board.test.ts` → all pass
 
@@ -1890,14 +1891,27 @@ export function setLocks(board: Board): void {
   }
 }
 
+/**
+ * IMPORTANT: BezierKnot.clone()/set() copy the `slave` field by reference (matching
+ * Java's shallow-clone contract — see core/bezier's BezierKnot). That means a cloned
+ * deck knot's `.slave` still points at the *pre-clone* bottom knot, not the fresh one
+ * in this same new Board. Every edit command clones the whole board, so without
+ * re-running setLocks() here, the deck/bottom nose-tail sync would silently break
+ * after the very first edit. setLocks() is idempotent (safe to call on every clone):
+ * it deterministically re-derives masks/locks/slave links from the current knots,
+ * and since deck/bottom tail endpoints are always coincident when sync is working,
+ * re-snapping them is a no-op in practice.
+ */
 export function cloneBoard(board: Board): Board {
-  return {
+  const next: Board = {
     ...board,
     outline: board.outline.clone(),
     deck: board.deck.clone(),
     bottom: board.bottom.clone(),
     crossSections: board.crossSections.map((cs) => ({ position: cs.position, spline: cs.spline.clone() })),
   };
+  setLocks(next);
+  return next;
 }
 ```
 
