@@ -1559,7 +1559,12 @@ export function invert(a: Matrix): Matrix {
     for (let row = col + 1; row < n; row++) {
       if (Math.abs(augmented[row][col]) > Math.abs(augmented[pivotRow][col])) pivotRow = row;
     }
-    if (Math.abs(augmented[pivotRow][col]) < 1e-12) {
+    // The !Number.isFinite check matters as much as the magnitude check: Math.abs(NaN)
+    // is NaN, and `NaN < 1e-12` is false, so a NaN-poisoned pivot (e.g. from dividing by
+    // a zero total path length upstream in bezierFit.ts) would otherwise sail through
+    // this guard and silently propagate NaN through the rest of the elimination instead
+    // of throwing here where the problem is easy to diagnose.
+    if (!Number.isFinite(augmented[pivotRow][col]) || Math.abs(augmented[pivotRow][col]) < 1e-12) {
       throw new Error('matrix is singular');
     }
     [augmented[col], augmented[pivotRow]] = [augmented[pivotRow], augmented[col]];
@@ -1629,6 +1634,29 @@ describe('bestFit', () => {
     const fitted = bestFit(points);
     for (const p of fitted) expect(p.y).toBeCloseTo(0, 1);
   });
+
+  it('throws for 1-3 points (normal-equations matrix is rank-deficient)', () => {
+    expect(() => bestFit([{ x: 0, y: 0 }])).toThrow('matrix is singular');
+    expect(() => bestFit([{ x: 0, y: 0 }, { x: 1, y: 1 }])).toThrow('matrix is singular');
+    expect(() => bestFit([{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 2 }])).toThrow('matrix is singular');
+  });
+
+  it('throws for all-coincident points instead of silently returning NaN control points', () => {
+    const points: Point2D[] = [
+      { x: 5, y: 5 },
+      { x: 5, y: 5 },
+      { x: 5, y: 5 },
+      { x: 5, y: 5 },
+    ];
+    expect(() => bestFit(points)).toThrow('matrix is singular');
+  });
+
+  it('throws (a lower-level TypeError, not "matrix is singular") for zero points', () => {
+    // Documented as a distinct, less-clear failure mode in bestFit's doc comment — this
+    // test just locks in that it still throws rather than silently misbehaving, since
+    // callers are expected to filter empty guide-point lists before calling bestFit.
+    expect(() => bestFit([])).toThrow();
+  });
 });
 ```
 
@@ -1664,7 +1692,35 @@ function columnVector(values: number[]): Matrix {
   return values.map((v) => [v]);
 }
 
-/** Port of BezierFit.bestFit: least-squares fit of a single cubic Bezier through `points`. Returns [P0, P1(tangent-to-next), P2(tangent-to-prev), P3]. */
+/**
+ * Port of BezierFit.bestFit: least-squares fit of a single cubic Bezier through `points`.
+ * Returns [P0, P1(tangent-to-next), P2(tangent-to-prev), P3].
+ *
+ * Uses chord-length parametrization (cumulative distance between consecutive points,
+ * normalized to [0,1]) as a stand-in for the curve's true parameter, since real guide
+ * points (e.g. mouse clicks) have no known parameter value. This is an approximation:
+ * for points whose true parametrization is far from evenly-spaced-by-arc-length (e.g.
+ * very unequal tangent-handle lengths), the fit can deviate from the "true" underlying
+ * curve by a non-trivial amount even though the least-squares solve itself is exact —
+ * see bezierFit.test.ts's tolerance comment for a worked example and independent proof
+ * this is inherent to the method, not a solver bug.
+ *
+ * Requires at least 4 points, not all coincident, for the normal-equations matrix
+ * `A = UT * U` to be non-singular:
+ * - `points.length === 0`: throws a TypeError from `transpose()`'s internal `a[0].length`
+ *   access (an empty `U` has no rows) — a different, less clear error than the ones below,
+ *   since this case is never expected to reach `bestFit` in practice (callers filter empty
+ *   guide-point lists before calling this).
+ * - `points.length` 1-3: `invert()` throws `'matrix is singular'` (U doesn't have full
+ *   column rank).
+ * - All points coincident (any count): `normalizedPathLengths` divides by a total path
+ *   length of 0, producing NaN t-values that poison `A`; `invert()` throws `'matrix is
+ *   singular'` (its pivot guard explicitly checks for non-finite values, not just small
+ *   magnitude — see the comment in matrix.ts — specifically so this case throws instead
+ *   of silently returning NaN control points).
+ * Callers should guard against `points.length < 4` before calling `bestFit`; the
+ * all-coincident case is handled by the throw above rather than needing a caller-side guard.
+ */
 export function bestFit(points: Point2D[]): [Point2D, Point2D, Point2D, Point2D] {
   const npls = normalizedPathLengths(points);
   const U: Matrix = npls.map((u) => [u ** 3, u ** 2, u, 1]);
