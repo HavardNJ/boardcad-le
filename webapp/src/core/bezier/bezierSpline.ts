@@ -14,6 +14,26 @@ const MAX = 1;
  * clone. Hit-testing (findBestMatch/getBestMatchWhich) is app-layer pointer interaction and
  * is not ported here. getValueAtReverse, tangent/normal/angle-based length queries, and
  * toString/fromString (legacy text format) are also not ported - nothing in scope calls them.
+ *
+ * INVARIANT - shared knot objects between adjacent curves: a spline with N control points
+ * has N-1 curves, and for every internal boundary, curve `i`'s end knot and curve `i+1`'s
+ * start knot must be the *same* `BezierKnot` object reference (`curves[i].getEndKnot() ===
+ * curves[i + 1].getStartKnot()`), not merely two separate knots with equal coordinates.
+ * This is how the spline stays a single connected curve rather than a list of disjoint
+ * segments: `getControlPoint(i)` for an internal index reads `curves[i - 1].getEndKnot()`,
+ * and moving that shared knot (e.g. via `setControlPointLocation`) must move both curves'
+ * shared endpoint at once, which only works if it's one object referenced twice.
+ * `append`/`insert`/`remove` all preserve this by construction: `append` reuses
+ * `curves[last].getEndKnot()` as the new curve's start knot rather than creating a fresh
+ * one; `insert`/`remove` patch the existing neighbor curve's end knot in place via
+ * `curve.setEndKnot(...)` instead of replacing the whole curve object. Anyone extending or
+ * reimplementing this logic must preserve reference identity at every internal boundary -
+ * swapping in a same-valued-but-distinct knot silently splits the spline into disconnected
+ * pieces (evaluation functions that walk `curves[]` independently, like `getValueAt`/
+ * `getPointByCurveLength`, would keep working per-segment, but anything that mutates a
+ * knot expecting it to move both adjacent curves - e.g. app-layer drag handling - would
+ * only move one side, and `indexOf`/`getControlPoint` identity lookups would start
+ * disagreeing about which curve "owns" the shared point).
  */
 export class BezierSpline {
   private curves: BezierCurve[] = [];
@@ -23,6 +43,12 @@ export class BezierSpline {
     return this.curves[this.curves.length - 1].getEndKnot() == null;
   }
 
+  /**
+   * Appends `controlPoint` as the new last control point. When there's already a dangling
+   * last curve (its end knot is null), completes it with `setEndKnot`; otherwise starts a
+   * new curve whose start knot is reused (same object, not a copy) from the current last
+   * curve's end knot - preserving the shared-knot invariant documented on the class above.
+   */
   append(controlPoint: BezierKnot): void {
     if (this.curves.length === 0) {
       this.curves.push(new BezierCurve(controlPoint, null as unknown as BezierKnot));
@@ -33,6 +59,33 @@ export class BezierSpline {
     }
   }
 
+  /**
+   * Inserts `controlPoint` at index `i`, splitting the curve that previously ran through
+   * that position into two curves that share `controlPoint` as their new joint (preserving
+   * the shared-knot invariant documented on the class above) via `curves[i - 1].setEndKnot`
+   * rather than constructing a replacement curve for the left neighbor.
+   *
+   * Valid range for `i` is `[0, getNrOfControlPoints() - 1]` - i.e. inserting before or
+   * between existing control points. To add a point after the last one, use `append()`
+   * instead of `insert(getNrOfControlPoints(), cp)`.
+   *
+   * NOT VALIDATED (documented, not guarded - see the coordinator note in this task's
+   * history for why no runtime check was added): calling `insert(i, cp)` with
+   * `i === getNrOfControlPoints()` on a spline whose last knot is already non-null is out
+   * of the valid range, but silently "succeeds" without an error. `next` resolves to null
+   * (`i < getNrOfControlPoints()` is false), no existing curve's end knot gets patched
+   * (`i - 1 < curves.length` is false when `i` is one past the end), and
+   * `curves.splice(i, ...)` clamps to appending at the array's end instead of throwing -
+   * unlike Java's `ArrayList.add(index, ...)`, which throws `IndexOutOfBoundsException` for
+   * the equivalent out-of-range call. The result is a new dangling curve appended after the
+   * spline's existing last curve with no knot shared between them: a silently disconnected
+   * spline, not a crash. Nothing in this plan calls `insert()` out of range (the one caller,
+   * `addControlPointCommand` in Task 10, always gets `i` from `getSplitControlPoint()`,
+   * which returns a valid in-range index by construction), so this is intentionally left
+   * undocumented-by-assertion rather than guarded - adding a runtime check now would be
+   * scope creep for a call pattern nothing exercises. If a future caller ever needs to
+   * insert at an arbitrary/untrusted index, add a bounds check there.
+   */
   insert(i: number, controlPoint: BezierKnot): void {
     let next: BezierKnot | null = null;
     if (i < this.getNrOfControlPoints()) {
@@ -45,6 +98,13 @@ export class BezierSpline {
     this.curves.splice(i, 0, newCurve);
   }
 
+  /**
+   * Removes the control point at index `i` (or the given `BezierKnot`, resolved via
+   * `indexOf`), rejoining its two neighboring curves into one continuous curve by patching
+   * the left neighbor's end knot to the right neighbor's end knot via `setEndKnot`
+   * (preserving the shared-knot invariant documented on the class above), then dropping the
+   * now-redundant curve object rather than leaving two curves pointing at removed state.
+   */
   remove(knotOrIndex: BezierKnot | number): void {
     const i = typeof knotOrIndex === 'number' ? knotOrIndex : this.indexOf(knotOrIndex);
     let removeCurve: BezierCurve | null = null;
