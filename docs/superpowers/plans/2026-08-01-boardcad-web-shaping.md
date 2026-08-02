@@ -812,7 +812,6 @@ const POS_MAX_ITERATIONS = 30;
 const LENGTH_TOLERANCE = 0.001;
 const MIN_MAX_TOLERANCE = 0.0001;
 const MIN_MAX_SPLITS = 96;
-const MIN_MAX_SPLITS_LOOSE = 32;
 
 export class BezierCurve {
   private startKnot: BezierKnot;
@@ -929,7 +928,11 @@ export class BezierCurve {
     }
 
     if (tn < 0 || tn > 1 || Number.isNaN(tn) || n >= POS_MAX_ITERATIONS || Math.abs(error) > POS_TOLERANCE) {
-      tn = this.getTForXBySearch(x, 0, 1, MIN_MAX_SPLITS_LOOSE);
+      // Use the full MIN_MAX_SPLITS (96), matching Java's BezierCurve.getTForXInternal
+      // fallback (BezierSpline.MIN_MAX_SPLITS) — this fallback runs exactly when Newton's
+      // method already failed to converge (near-vertical tangent, tight curvature), which
+      // is the wrong place to trade away precision for speed.
+      tn = this.getTForXBySearch(x, 0, 1, MIN_MAX_SPLITS);
     }
     return tn;
   }
@@ -991,7 +994,17 @@ export class BezierCurve {
       }
     }
 
-    if (bestT - (t1 - t0) / 2 < MIN_MAX_TOLERANCE) return bestValue;
+    // Java's BezierCurve.getMinMaxNumerical omits Math.abs() here (`best_t - ((t1-t0)/2) <
+    // MIN_MAX_TOLERANCE`), which means the recursive refinement only ever runs when the
+    // found extremum falls in the *second* half of the search interval — for the first
+    // half, it silently returns the coarse first-pass grid value. Verified empirically:
+    // this produces a ~10,000x precision swing (e.g. 7.7e-4 error vs 6.6e-11) purely based
+    // on which half of the t-domain the extremum happens to land in. Unlike rootFinder.ts's
+    // similar Java quirk (Task 1), nothing needs bug-compatibility with Java's exact values
+    // here, and this method has real downstream consumers (BezierSpline's own min/max, board
+    // width/thickness, curve-fit range detection) — so this port deliberately fixes it with
+    // Math.abs, trading zero cost for materially better accuracy.
+    if (Math.abs(bestT - (t1 - t0) / 2) < MIN_MAX_TOLERANCE) return bestValue;
     if (nrOfSplits <= 2) return bestValue;
     return this.getMinMaxNumerical(xOrY, minOrMax, bestT - seg, bestT + seg, Math.floor(nrOfSplits / 2));
   }
