@@ -294,20 +294,42 @@ export class BezierSpline {
    * (scaleX=newWidthScale, scaleY=newThicknessScale) here to preserve Java's actual
    * behavior, not copy the Java argument order literally.
    */
+  /**
+   * Bug fix over the version of this method as first written (Task 4): it mutated each
+   * knot's `points` directly via `BezierKnot.scale()`, but never called the owning
+   * `BezierCurve.setDirty()`. Per the contract documented on `BezierCurve.setDirty()`
+   * ("callers that mutate a knot in place after handing it to a BezierCurve must call
+   * setDirty() themselves afterward"), skipping that left every curve's cached
+   * coefficients pointing at the PRE-scale geometry whenever the curve had already been
+   * evaluated once (`coeffDirty` starts `true`, but flips to `false` the moment anything
+   * calls e.g. `getMaxX()`/`getValueAt()` - which is exactly what
+   * `crossSection.ts#scaleCrossSection` does, reading `getWidth()`/`getCenterThickness()`
+   * to compute the scale factor before applying it). Confirmed empirically: `getMaxX()`
+   * returned the pre-scale value after `scale()` whenever `getMaxX()` had been called
+   * once beforehand. Every curve is invalidated after the mutation loop (not just the
+   * ones whose own start/end knot object was directly touched) because of the
+   * shared-knot invariant - curve `i`'s start knot is the same object as curve `i-1`'s
+   * end knot, so mutating it also invalidates curve `i-1`'s cache, and looping over
+   * every curve unconditionally is simpler and just as correct as tracking which curves
+   * share the mutated knot.
+   */
   scale(scaleX: number, scaleY: number): void {
     for (let i = 0; i < this.curves.length; i++) {
       if (i === 0) this.curves[i].getStartKnot().scale(scaleX, scaleY);
       const endKnot = this.curves[i].getEndKnot();
       if (endKnot != null) endKnot.scale(scaleX, scaleY);
     }
+    for (const c of this.curves) c.setDirty();
   }
 
+  /** Same stale-cache bug fix as `scale()` above - see its comment for the full explanation. */
   translate(dx: number, dy: number): void {
     for (let i = 0; i < this.curves.length; i++) {
       if (i === 0) this.curves[i].getStartKnot().translate(dx, dy);
       const endKnot = this.curves[i].getEndKnot();
       if (endKnot != null) endKnot.translate(dx, dy);
     }
+    for (const c of this.curves) c.setDirty();
   }
 
   clone(): BezierSpline {

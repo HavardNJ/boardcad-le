@@ -1,6 +1,7 @@
 import { BezierSpline } from '../bezier/bezierSpline';
 import { BezierKnot, LOCK_X_LESS, LOCK_X_MORE, LOCK_Y_MORE } from '../bezier/bezierKnot';
 import type { Board, CrossSection } from './types';
+import { scaleCrossSection, interpolateCrossSection } from './crossSection';
 
 const DEFAULT_LENGTH = 180; // cm, roughly a shortboard
 const DEFAULT_HALF_WIDTH = 25;
@@ -203,4 +204,133 @@ export function cloneBoard(board: Board): Board {
   };
   setLocks(next);
   return next;
+}
+
+function getNearestCrossSectionIndex(board: Board, pos: number): number {
+  let nearest = -1;
+  let nearestPos = -300000;
+  for (let i = 1; i < board.crossSections.length - 1; i++) {
+    const current = board.crossSections[i];
+    if (nearest === -1 || Math.abs(nearestPos - pos) > Math.abs(current.position - pos)) {
+      nearest = i;
+      nearestPos = current.position;
+    }
+  }
+  return nearest;
+}
+
+/**
+ * Port of BezierBoard.getInterpolatedCrossSection: finds the two bounding cross-sections
+ * around x, interpolates between them, then scales the result to the board's actual
+ * width/thickness at x.
+ *
+ * Deviation from the literal Java algorithm: `getNearestCrossSectionIndex` only searches
+ * "real" cross-sections (index 1..length-2 - see its own comment), so it returns -1 when a
+ * board has none (this port's `newBoard()` starts with exactly 2 cross-sections, both
+ * boundary ones, so this is the board's default state, not a rare edge case). Java's
+ * literal follow-up (`getCrossSections().get(index)` with `index === -1`) would throw
+ * `IndexOutOfBoundsException` in that state - this port instead falls back to
+ * interpolating directly between the two boundary cross-sections (index 0 and the last),
+ * which is well-defined and gives a sensible result rather than crashing on a board state
+ * this port's own `newBoard()` produces.
+ */
+export function getInterpolatedCrossSection(board: Board, x: number): CrossSection | null {
+  if (board.crossSections.length === 0) return null;
+  if (x < 0) return null;
+  if (x > getLength(board)) return null;
+
+  const nearest = getNearestCrossSectionIndex(board, x);
+
+  let index: number;
+  let nextIndex: number;
+
+  if (nearest === -1) {
+    index = 0;
+    nextIndex = board.crossSections.length - 1;
+  } else {
+    index = nearest;
+    if (board.crossSections[index].position > x) index -= 1;
+    nextIndex = index + 1;
+  }
+
+  const firstPos = board.crossSections[index].position;
+  const secondPos = board.crossSections[nextIndex].position;
+  let t = (x - firstPos) / (secondPos - firstPos);
+  if (!Number.isFinite(t)) t = 0.0;
+
+  if (nearest !== -1) {
+    if (index < 1) index = 1;
+    if (nextIndex > board.crossSections.length - 2) {
+      index = board.crossSections.length - 2;
+      nextIndex = index;
+    }
+  }
+
+  const c1 = board.crossSections[index];
+  const c2 = board.crossSections[nextIndex];
+  const interpolated = interpolateCrossSection(c1, c2, t);
+  if (interpolated == null) return null;
+
+  const thickness = Math.max(getThicknessAtPos(board, x), 0.5);
+  const width = Math.max(getWidthAtPos(board, x), 0.5);
+  scaleCrossSection(interpolated, thickness, width);
+  interpolated.position = x;
+
+  return interpolated;
+}
+
+/** Port of BezierBoard.adjustCrosssectionsToThicknessAndWidth: only touches "real" cross-sections
+ *  (index 1..length-2), leaving the tail/nose boundary cross-sections (index 0 and the last) alone -
+ *  matches the convention established in Task 6 that those two are dummy/boundary entries, not editable shape data. */
+export function adjustCrosssectionsToThicknessAndWidth(board: Board): void {
+  for (let i = 1; i < board.crossSections.length - 1; i++) {
+    const current = board.crossSections[i];
+    scaleCrossSection(current, getThicknessAtPos(board, current.position), getWidthAtPos(board, current.position));
+  }
+}
+
+/**
+ * Port of BezierBoard.adjustRockerToZero: shifts bottom (and deck, to keep thickness
+ * consistent) so the bottom's minimum y is exactly 0. Java loops every control point of
+ * both splines subtracting `min` from all 3 of the knot's points (endpoint + both tangent
+ * handles) - i.e. a uniform (dx=0, dy=-min) translation, so this uses `BezierSpline.translate`
+ * directly rather than reimplementing the same per-point loop (which would also need to
+ * remember to invalidate the splines' curve caches itself - see `translate()`'s doc comment).
+ */
+export function adjustRockerToZero(board: Board): void {
+  const min = board.bottom.getMinY();
+  board.bottom.translate(0, -min);
+  board.deck.translate(0, -min);
+}
+
+export function onRockerChanged(board: Board): void {
+  adjustRockerToZero(board);
+  adjustCrosssectionsToThicknessAndWidth(board);
+}
+
+export function onOutlineChanged(board: Board): void {
+  adjustCrosssectionsToThicknessAndWidth(board);
+}
+
+export function onCrossSectionChanged(board: Board): void {
+  adjustCrosssectionsToThicknessAndWidth(board);
+}
+
+/** Port of BezierBoard.scale: uniformly re-scales outline/deck/bottom and repositions cross-sections proportionally, pinning the last cross-section to the new length. */
+export function scaleBoard(board: Board, newLength: number, newWidth: number, newThickness: number): void {
+  const lengthScale = newLength / getLength(board);
+  const widthScale = newWidth / getMaxWidth(board);
+  const thicknessScale = newThickness / getMaxThickness(board);
+
+  board.outline.scale(lengthScale, widthScale);
+  board.deck.scale(lengthScale, thicknessScale);
+  board.bottom.scale(lengthScale, thicknessScale);
+
+  for (let i = 1; i < board.crossSections.length - 1; i++) {
+    const cs = board.crossSections[i];
+    cs.position = cs.position * lengthScale;
+  }
+  board.crossSections[board.crossSections.length - 1].position = newLength;
+
+  adjustCrosssectionsToThicknessAndWidth(board);
 }
