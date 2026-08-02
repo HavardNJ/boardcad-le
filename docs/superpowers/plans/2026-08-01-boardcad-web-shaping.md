@@ -2726,7 +2726,12 @@ export class BoardCommandHistory<TState = unknown> {
   private currentIndex = -1;
 
   execute(description: string, before: TState, after: TState): TState {
-    if (this.currentIndex >= 0 && this.entries.length > this.currentIndex + 1) {
+    // No `currentIndex >= 0` guard: when undo has walked all the way back to -1,
+    // `entries.length > 0` still correctly truncates to length 0 before the new
+    // entry is pushed, discarding the whole stale forward branch. Guarding on
+    // `currentIndex >= 0` here would skip truncation in exactly that case, leaking
+    // the discarded branch's snapshots into later undo() calls.
+    if (this.entries.length > this.currentIndex + 1) {
       this.entries.length = this.currentIndex + 1;
     }
     this.entries.push({ description, before, after });
