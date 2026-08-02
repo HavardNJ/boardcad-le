@@ -1274,7 +1274,12 @@ export class BezierSpline {
   }
 
   getControlPoint(i: number): BezierKnot {
-    if (this.curves.length === 0 || this.curves.length < i - 1) return null as unknown as BezierKnot;
+    // Valid indices are [0, curves.length] for a complete spline (getNrOfControlPoints()
+    // === curves.length + 1). Java's equivalent check (`mCurves.size() < i - 1`) has an
+    // off-by-one that throws IndexOutOfBoundsException instead of returning null for
+    // i === curves.length + 1 specifically; fixed here since nothing needs bug-compatibility
+    // with a crash, and an out-of-range index is a reasonable thing for a caller to probe.
+    if (this.curves.length === 0 || i < 0 || i > this.curves.length) return null as unknown as BezierKnot;
     return i === 0 ? this.curves[0].getStartKnot() : this.curves[i - 1].getEndKnot();
   }
 
@@ -1328,15 +1333,24 @@ export class BezierSpline {
     return max;
   }
 
+  // Java's BezierSpline.getMinX()/getMaxY() genuinely loop `i < mCurves.size() - 1`,
+  // skipping the last curve — confirmed against BezierSpline.java directly, not a
+  // transcription error. This is a real bug, not an intentional design choice: it can
+  // both under-report the true extremum (if it falls in the last segment) and return a
+  // bogus sentinel value entirely for a 1-curve spline. getMaxY() feeds getMaxWidth()/
+  // getMaxRocker() (Task 6), which Task 7's scaleBoard divides by — a wrong value there
+  // produces wrong scaling, not just a cosmetic display glitch. Fixed to loop over all
+  // curves (matching the already-correct getMaxX()/getMinY() below), since nothing needs
+  // bug-compatibility with Java's under-reported extrema.
   getMinX(): number {
     let min = Number.MAX_VALUE;
-    for (let i = 0; i < this.curves.length - 1; i++) min = Math.min(min, this.curves[i].getMinX());
+    for (const c of this.curves) min = Math.min(min, c.getMinX());
     return min;
   }
 
   getMaxY(): number {
     let max = -Number.MAX_VALUE;
-    for (let i = 0; i < this.curves.length - 1; i++) max = Math.max(max, this.curves[i].getMaxY());
+    for (const c of this.curves) max = Math.max(max, c.getMaxY());
     return max;
   }
 
@@ -2061,7 +2075,17 @@ export function scaleCrossSection(cs: CrossSection, newThickness: number, newWid
   if (oldThickness * thicknessScale <= 0.1) return;
   if (oldWidth * widthScale <= 0.1) return;
 
-  cs.spline.scale(thicknessScale, widthScale);
+  // NOTE: argument order is (widthScale, thicknessScale), NOT (thicknessScale, widthScale)
+  // like the Java call site (BezierBoardCrossSection.java:145, mCrossSectionSpline.scale
+  // (newThicknessScale, newWidtScale)) reads at a glance. Java's BezierSpline.scale
+  // (verticalScale, horizontalScale) secretly swaps arguments before applying them to each
+  // knot's scale(scaleX, scaleY); this port's BezierSpline.scale(scaleX, scaleY) (Task 4)
+  // deliberately does NOT swap, for a clearer, non-confusing API. Cross-section splines
+  // have local x=half-width, local y=height/thickness (see core/surface's mesh builder),
+  // so the correct call here is scale(widthScale, thicknessScale) — copying Java's literal
+  // argument order would silently swap width and thickness scaling. Caught during Task 4's
+  // review before this function was ever implemented.
+  cs.spline.scale(widthScale, thicknessScale);
 }
 
 function cloneCrossSection(cs: CrossSection): CrossSection {
@@ -2277,9 +2301,17 @@ export function scaleBoard(board: Board, newLength: number, newWidth: number, ne
   const widthScale = newWidth / getMaxWidth(board);
   const thicknessScale = newThickness / getMaxThickness(board);
 
-  board.outline.scale(widthScale, lengthScale);
-  board.deck.scale(thicknessScale, lengthScale);
-  board.bottom.scale(thicknessScale, lengthScale);
+  // NOTE: argument order here is (lengthScale, widthOrThicknessScale) — i.e. (x,y) order —
+  // NOT the order Java's BezierBoard.scale() literally reads (mOutlineSpline.scale
+  // (widthScale, lengthScale), etc.). Same reasoning as scaleCrossSection above: Java's
+  // BezierSpline.scale(verticalScale, horizontalScale) secretly swaps args before applying
+  // them; this port's BezierSpline.scale(scaleX, scaleY) doesn't swap. Outline/deck/bottom
+  // splines all have local x=length position, local y=half-width or height, so copying
+  // Java's literal argument order here would swap length scaling onto the width/thickness
+  // axis and vice versa.
+  board.outline.scale(lengthScale, widthScale);
+  board.deck.scale(lengthScale, thicknessScale);
+  board.bottom.scale(lengthScale, thicknessScale);
 
   for (let i = 1; i < board.crossSections.length - 1; i++) {
     const cs = board.crossSections[i];
