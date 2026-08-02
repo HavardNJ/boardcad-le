@@ -73,6 +73,29 @@ describe('deleteControlPointCommand', () => {
     expect(result.outline.getNrOfControlPoints()).toBe(2);
     expect(result.outline.getCurve(0).getLength()).toBeCloseTo(totalBefore, 0);
   });
+
+  it('converges (not diverges to Infinity) for asymmetric non-degenerate tangent geometry', () => {
+    // Regression test: the convergence loop used to call prevCurve.getLength() every
+    // iteration without invalidating its cache after scaleTangentToNext/Prev mutated the
+    // knots in place, so newLength was frozen after the first iteration and the same
+    // factor got reapplied 1000 times, compounding geometrically instead of converging.
+    // knot0 and knot2 (the knots that survive the deletion of knot1) both need genuine
+    // off-axis tangent components here, or the merged curve degenerates to a straight
+    // line whose length is invariant to tangent scaling regardless of caching.
+    const board = newBoard();
+    board.outline = new BezierSpline();
+    board.outline.append(new BezierKnot(0, 0, -1, -3, 1, 3));
+    board.outline.append(new BezierKnot(10, 0, 5, 5, 15, -5));
+    board.outline.append(new BezierKnot(30, 0, 25, -4, 35, 4));
+    const totalBefore = board.outline.getCurve(0).getLength() + board.outline.getCurve(1).getLength();
+
+    const result = deleteControlPointCommand(board, 'outline', 1);
+
+    const tangent = result.outline.getControlPoint(0).tangentToNext;
+    expect(Number.isFinite(tangent.x)).toBe(true);
+    expect(Number.isFinite(tangent.y)).toBe(true);
+    expect(Math.abs(result.outline.getCurve(0).getLength() - totalBefore)).toBeLessThan(0.5);
+  });
 });
 
 describe('fitCurveFromGuidePointsCommand', () => {
