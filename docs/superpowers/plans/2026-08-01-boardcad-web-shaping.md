@@ -421,11 +421,15 @@ describe('BezierKnot', () => {
   it('setControlPointLocation updates a slave knot endpoint and tangent deltas', () => {
     const k = new BezierKnot(0, 0, -1, 0, 1, 0);
     const slave = new BezierKnot(10, 10, 9, 10, 11, 10);
+    // setSlave() itself calls updateSlave() once (endpoint snaps to k's endpoint (0,0);
+    // tangents shift by the (10,10) delta between the two endpoints), so slave's
+    // tangents are already (19,20)/(21,20) before setControlPointLocation runs.
     k.setSlave(slave);
+    // setControlPointLocation(2,3) then applies a further (2,3) delta on top of that.
     k.setControlPointLocation(2, 3);
     expect(slave.points[0]).toEqual({ x: 2, y: 3 });
-    expect(slave.points[1]).toEqual({ x: 11, y: 13 });
-    expect(slave.points[2]).toEqual({ x: 13, y: 13 });
+    expect(slave.points[1]).toEqual({ x: 21, y: 23 });
+    expect(slave.points[2]).toEqual({ x: 23, y: 23 });
   });
 
   it('setTangentToNext clamps against LOCK_X_MORE', () => {
