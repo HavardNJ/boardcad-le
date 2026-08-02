@@ -93,6 +93,16 @@ describe('BezierKnot', () => {
     expect(slave.points[2]).toEqual({ x: 21, y: 20 });
   });
 
+  it('clone() copies the slave reference as-is (not deep-cloned)', () => {
+    const k = new BezierKnot(0, 0, -1, 0, 1, 0);
+    const slave = new BezierKnot(10, 10, 9, 10, 11, 10);
+    k.setSlave(slave);
+
+    const c = k.clone();
+
+    expect(c.slave).toBe(slave);
+  });
+
   it('set() copies the slave reference as-is (not deep-cloned)', () => {
     const k = new BezierKnot(0, 0, -1, 0, 1, 0);
     const slave = new BezierKnot(10, 10, 9, 10, 11, 10);
