@@ -27,6 +27,11 @@ export const NEXT_TANGENT = 2;
  * `compareTo`/`toString`/`fromString` from the Java original are not ported: they exist
  * for CAM cross-section matching heuristics and legacy `.brd` text serialization, neither
  * of which apply to this port (v1 uses JSON, not the text format).
+ *
+ * Java's `mChangeListeners`/`onChange()` observer mechanism (fired after every mutating
+ * call) is also not ported: this port's architecture uses whole-Board immutable
+ * snapshots per command (see `cloneBoard`) instead of a mutation-observer pattern, so
+ * there is nothing for a per-knot change event to notify.
  */
 export class BezierKnot {
   /** [endpoint, tangentToPrev, tangentToNext] - matches Java's index convention. */
@@ -40,6 +45,12 @@ export class BezierKnot {
    * An optional linked knot that mirrors this knot's endpoint moves (e.g. a knot shared
    * between two hull sections). See `setSlave`/`updateSlave` for the update math, and
    * `set`/`clone` for why the reference itself is never deep-copied.
+   *
+   * Live reference to a linked knot kept in sync via `updateSlave()`. WARNING: `clone()`/
+   * `set()` copy this by reference — any code that clones a knot's containing collection
+   * (spline/board) must rebind slave pointers to the new instances afterward, e.g. by
+   * re-running the board's `setLocks()`. Without that rebind, a cloned knot's `slave`
+   * still points at the pre-clone knot, silently breaking sync after the first edit.
    */
   slave: BezierKnot | null = null;
 
@@ -231,7 +242,12 @@ export class BezierKnot {
    *  - LOCK_X_LESS clamps when endpoint.x < point.x (point.x can't go above endpoint.x)
    *  - LOCK_Y_MORE clamps when endpoint.y > point.y (point.y can't go below endpoint.y)
    *  - LOCK_Y_LESS clamps when endpoint.y < point.y (point.y can't go above endpoint.y)
-   * Mutates `point` in place (mirrors Java's Point2D.Double aliasing behavior).
+   * Mutates `point` in place (mirrors Java's Point2D.Double aliasing behavior) - this is
+   * a deliberate exception to the rest of the class, where every setter reassigns
+   * `this.points[i]` to a fresh object rather than mutating the existing one. Safe today
+   * because both call sites (`setTangentToPrev`/`setTangentToNext`) pass a freshly-created
+   * point object they exclusively own, but callers passing in a shared/aliased point
+   * should not assume it survives untouched.
    */
   handleLocks(point: Point2D, locks: number): void {
     if ((locks & LOCK_X_MORE) !== 0 && this.points[0].x > point.x) point.x = this.points[0].x;

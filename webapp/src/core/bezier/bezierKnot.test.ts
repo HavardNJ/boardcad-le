@@ -56,6 +56,28 @@ describe('BezierKnot', () => {
     expect(k.getAngleBetweenTangents()).toBeCloseTo(Math.PI);
   });
 
+  it('scaleTangentToNext doubles the tangent distance from the endpoint, preserving direction', () => {
+    const k = new BezierKnot(0, 0, -1, 0, 3, 4);
+    const originalLength = k.getTangentToNextLength(); // sqrt(3^2+4^2) = 5
+
+    k.scaleTangentToNext(2);
+
+    expect(k.getTangentToNextLength()).toBeCloseTo(originalLength * 2);
+    // (3,4) scaled by 2 around the endpoint (0,0) is (6,8) - same direction, not just same length.
+    expect(k.points[2]).toEqual({ x: 6, y: 8 });
+  });
+
+  it('scaleTangentToPrev doubles the tangent distance from the endpoint, preserving direction', () => {
+    const k = new BezierKnot(0, 0, -3, -4, 1, 0);
+    const originalLength = k.getTangentToPrevLength(); // sqrt(3^2+4^2) = 5
+
+    k.scaleTangentToPrev(2);
+
+    expect(k.getTangentToPrevLength()).toBeCloseTo(originalLength * 2);
+    // (-3,-4) scaled by 2 around the endpoint (0,0) is (-6,-8) - same direction, not just same length.
+    expect(k.points[1]).toEqual({ x: -6, y: -8 });
+  });
+
   it('clone deep-copies points so mutating the clone does not affect the original', () => {
     const k = new BezierKnot(0, 0, -1, 0, 1, 0);
     const c = k.clone();
