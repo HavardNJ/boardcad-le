@@ -1418,20 +1418,35 @@ export class BezierSpline {
     return index + 1;
   }
 
+  /**
+   * Mutates every knot directly (via BezierKnot.scale(), which reassigns `points` with no
+   * change notification — see Task 3's note on BezierCurve having no listener wiring).
+   * Any curve whose coefficients were already cached (coeffDirty=false, e.g. because
+   * something called getMaxX()/getValueAt() on this spline before this scale()) would
+   * otherwise silently keep returning pre-scale values. Found during Task 7: crossSection.ts's
+   * scaleCrossSection() does exactly that — reads getWidth()/getCenterThickness() (forcing
+   * evaluation) before calling scale() on the same spline. Invalidate every curve after the
+   * mutation loop, unconditionally (not just the ones whose own knot object was directly
+   * touched): the shared-knot invariant means mutating knot i also affects curve i-1's cached
+   * value via its shared end knot, so looping over every curve is simpler and equally correct.
+   */
   scale(scaleX: number, scaleY: number): void {
     for (let i = 0; i < this.curves.length; i++) {
       if (i === 0) this.curves[i].getStartKnot().scale(scaleX, scaleY);
       const endKnot = this.curves[i].getEndKnot();
       if (endKnot != null) endKnot.scale(scaleX, scaleY);
     }
+    for (const c of this.curves) c.setDirty();
   }
 
+  /** Same stale-cache bug as `scale()` above — see its comment for the full explanation. */
   translate(dx: number, dy: number): void {
     for (let i = 0; i < this.curves.length; i++) {
       if (i === 0) this.curves[i].getStartKnot().translate(dx, dy);
       const endKnot = this.curves[i].getEndKnot();
       if (endKnot != null) endKnot.translate(dx, dy);
     }
+    for (const c of this.curves) c.setDirty();
   }
 
   clone(): BezierSpline {
@@ -2317,25 +2332,51 @@ function getNearestCrossSectionIndex(board: Board, pos: number): number {
   return nearest;
 }
 
-/** Port of BezierBoard.getInterpolatedCrossSection: finds the two bounding cross-sections around x, interpolates between them, then scales the result to the board's actual width/thickness at x. */
-export function getInterpolatedCrossSection(board: Board, x: number) {
+/**
+ * Port of BezierBoard.getInterpolatedCrossSection: finds the two bounding cross-sections
+ * around x, interpolates between them, then scales the result to the board's actual
+ * width/thickness at x.
+ *
+ * Deviation from the literal Java algorithm: `getNearestCrossSectionIndex` only searches
+ * "real" cross-sections (index 1..length-2), so it returns -1 when a board has none —
+ * which is `newBoard()`'s default state (exactly 2 cross-sections, both boundary ones),
+ * not a rare edge case. Java's literal follow-up (`getCrossSections().get(index)` with
+ * index -1) throws `IndexOutOfBoundsException` in that state; the equivalent TS
+ * (`board.crossSections[-1].position`) would throw a TypeError. This port instead falls
+ * back to interpolating directly between the two boundary cross-sections (index 0 and the
+ * last) when `nearest === -1`, which is well-defined and gives a sensible result rather
+ * than crashing on a board state this port's own `newBoard()` produces by default.
+ */
+export function getInterpolatedCrossSection(board: Board, x: number): CrossSection | null {
   if (board.crossSections.length === 0) return null;
   if (x < 0) return null;
   if (x > getLength(board)) return null;
 
-  let index = getNearestCrossSectionIndex(board, x);
-  if (board.crossSections[index].position > x) index -= 1;
-  let nextIndex = index + 1;
+  const nearest = getNearestCrossSectionIndex(board, x);
+
+  let index: number;
+  let nextIndex: number;
+
+  if (nearest === -1) {
+    index = 0;
+    nextIndex = board.crossSections.length - 1;
+  } else {
+    index = nearest;
+    if (board.crossSections[index].position > x) index -= 1;
+    nextIndex = index + 1;
+  }
 
   const firstPos = board.crossSections[index].position;
   const secondPos = board.crossSections[nextIndex].position;
   let t = (x - firstPos) / (secondPos - firstPos);
   if (!Number.isFinite(t)) t = 0.0;
 
-  if (index < 1) index = 1;
-  if (nextIndex > board.crossSections.length - 2) {
-    index = board.crossSections.length - 2;
-    nextIndex = index;
+  if (nearest !== -1) {
+    if (index < 1) index = 1;
+    if (nextIndex > board.crossSections.length - 2) {
+      index = board.crossSections.length - 2;
+      nextIndex = index;
+    }
   }
 
   const c1 = board.crossSections[index];
@@ -2358,16 +2399,14 @@ export function adjustCrosssectionsToThicknessAndWidth(board: Board): void {
   }
 }
 
+// Uses BezierSpline.translate() (which invalidates curve caches, see its comment) rather
+// than a manual per-knot points-mutation loop — a manual loop here would reintroduce the
+// exact same stale-cache bug that scale()/translate() themselves needed fixing for, since
+// getMinY() (called first, below) forces evaluation before the knots get mutated.
 export function adjustRockerToZero(board: Board): void {
   const min = board.bottom.getMinY();
-  for (let i = 0; i < board.bottom.getNrOfControlPoints(); i++) {
-    const knot = board.bottom.getControlPoint(i);
-    knot.points = knot.points.map((p) => ({ x: p.x, y: p.y - min })) as typeof knot.points;
-  }
-  for (let i = 0; i < board.deck.getNrOfControlPoints(); i++) {
-    const knot = board.deck.getControlPoint(i);
-    knot.points = knot.points.map((p) => ({ x: p.x, y: p.y - min })) as typeof knot.points;
-  }
+  board.bottom.translate(0, -min);
+  board.deck.translate(0, -min);
 }
 
 export function onRockerChanged(board: Board): void {
