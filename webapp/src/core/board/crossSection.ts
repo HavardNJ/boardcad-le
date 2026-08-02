@@ -90,6 +90,10 @@ export function interpolateCrossSection(source: CrossSection, target: CrossSecti
 
         const newControlPoint = new BezierKnot();
         const index = other.getSplitControlPoint(worstMatchPoint!.endPoint, newControlPoint);
+        // Dead branch, faithfully carried over from Java (`BezierBoardCrossSection.java`'s
+        // `if (index > 0) { ... } else { return interpolationClone; }`): getSplitControlPoint
+        // initializes its loop index to 0 and only ever raises it, then returns `index + 1`,
+        // so its result is always >= 1 - `index <= 0` can never actually be true here.
         if (index <= 0) return sourceCopy;
 
         other.insert(index, newControlPoint);
