@@ -68,6 +68,14 @@ export function getRoot(f: Fn, targetValue: number, minLimit = 0.0, maxLimit = 1
 
   if (Math.abs(secantActual - targetValue) > ROOTFINDER_VALUE_TOLERANCE) {
     const bisectX = bisectRoot(f, targetValue, minLimit, maxLimit);
+    // NOTE: MathUtils.java's getRoot() has a bug here — it evaluates the bisect result's
+    // error using the *secant* x (function.f(x)) instead of bis_x, so Java's bisect
+    // fallback can never actually be selected (the comparison always compares a value to
+    // itself). This port fixes that: bisectActual correctly uses f(bisectX). This function
+    // isn't currently called elsewhere in the port (BezierSpline's angle/root-based
+    // methods were deliberately not ported — see Task 4's "Scope cut" note), so the fix
+    // has no behavioral impact on anything in v1; it just makes the ported utility
+    // correct if it's ever used later.
     const bisectActual = f(bisectX);
 
     if (Math.abs(bisectActual - targetValue) > ROOTFINDER_VALUE_TOLERANCE) {
