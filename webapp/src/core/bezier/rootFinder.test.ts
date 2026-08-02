@@ -13,4 +13,14 @@ describe('rootFinder.getRoot', () => {
     const t = getRoot(f, 0.125, 0, 1);
     expect(f(t)).toBeCloseTo(0.125, 2);
   });
+
+  it('falls back to bisect when secant fails to converge within tolerance', () => {
+    // A long, nearly-flat region followed by a steep ramp: secant's linear-interpolation
+    // guess is dominated by the flat region's shallow slope, so it converges far short of
+    // the target and never approaches the steep section closely enough within its
+    // iteration budget. Bisect doesn't rely on slope, so it still brackets the root fine.
+    const f = (t: number) => (t < 0.9 ? 0.0001 * t : 0.0001 * 0.9 + 50 * (t - 0.9));
+    const t = getRoot(f, 0.1, 0, 1);
+    expect(f(t)).toBeCloseTo(0.1, 2);
+  });
 });

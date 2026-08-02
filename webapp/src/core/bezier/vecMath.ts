@@ -6,10 +6,12 @@ export function length(p0: Point2D, p1: Point2D = { x: 0, y: 0 }): number {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+/** Returns p1 - p0 (matches Java VecMath.subVector(p0, p1, ret)'s inverted argument order). */
 export function sub(p0: Point2D, p1: Point2D): Point2D {
   return { x: p1.x - p0.x, y: p1.y - p0.y };
 }
 
+/** Returns p0 + p1 (commutative, but keeps the same argument-order convention as sub/subVector). */
 export function add(p0: Point2D, p1: Point2D): Point2D {
   return { x: p1.x + p0.x, y: p1.y + p0.y };
 }
