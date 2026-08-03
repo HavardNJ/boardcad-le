@@ -3763,6 +3763,13 @@ export function screenToBoard(viewport: Viewport, p: Point2D): Point2D {
 
 /** Fits a spline's control-point bounding box into (width, height) with `padding` screen pixels on every side. */
 export function fitViewport(spline: BezierSpline, width: number, height: number, padding = 30, flipY = false): Viewport {
+  // A spline with no control points would otherwise leave minX/maxX/minY/maxY at their
+  // +/-Infinity sentinels, propagating NaN into centerX/centerY and the returned pan values -
+  // silently blank canvas, no error. Return a sane default instead.
+  if (spline.getNrOfControlPoints() === 0) {
+    return { scale: 1, panX: width / 2, panY: height / 2, flipY, width, height };
+  }
+
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -3802,9 +3809,10 @@ export function fitViewport(spline: BezierSpline, width: number, height: number,
 Create `webapp/src/app/editor2d/SplineCanvas.tsx`:
 
 ```tsx
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { Point2D } from '../../core/bezier/point';
 import { BezierSpline } from '../../core/bezier/bezierSpline';
+import { END_POINT, NEXT_TANGENT, PREVIOUS_TANGENT } from '../../core/bezier/bezierKnot';
 import { boardToScreen, type Viewport } from './viewport';
 
 export interface KnotSelection {
@@ -3838,7 +3846,11 @@ export function SplineCanvas(props: SplineCanvasProps) {
   const { spline, viewport, selection, onPointerDown, onPointerMove, onPointerUp, onDoubleClick } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
+  // `useLayoutEffect`, not `useEffect`: changing the canvas's width/height attributes below
+  // resets its bitmap per the HTML spec, and React commits that synchronously before paint.
+  // `useEffect` fires after paint, so it would leave a one-frame blank-canvas flash on mount
+  // and on every viewport resize; `useLayoutEffect` redraws before that paint happens.
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
@@ -3874,9 +3886,9 @@ export function SplineCanvas(props: SplineCanvasProps) {
       ctx.lineTo(next.x, next.y);
       ctx.stroke();
 
-      drawHandle(ctx, prev, isSelectedKnot && selection?.which === 1);
-      drawHandle(ctx, next, isSelectedKnot && selection?.which === 2);
-      drawEndpoint(ctx, endpoint, isSelectedKnot && selection?.which === 0);
+      drawHandle(ctx, prev, isSelectedKnot && selection?.which === PREVIOUS_TANGENT);
+      drawHandle(ctx, next, isSelectedKnot && selection?.which === NEXT_TANGENT);
+      drawEndpoint(ctx, endpoint, isSelectedKnot && selection?.which === END_POINT);
     }
   }, [spline, viewport, selection]);
 
@@ -4088,7 +4100,7 @@ git commit -m "Add app/editor2d pointer interaction: select, drag, add, delete c
 
 - [ ] **Step 1: Add guide point rendering to SplineCanvas.tsx**
 
-In `webapp/src/app/editor2d/SplineCanvas.tsx`, add a `guidePoints?: Point2D[]` prop and draw them inside the existing `useEffect`, and add it to the dependency array:
+In `webapp/src/app/editor2d/SplineCanvas.tsx`, add a `guidePoints?: Point2D[]` prop and draw them inside the existing `useLayoutEffect` (Task 14's code review changed this from `useEffect` to avoid a blank-canvas flash on mount/resize — see Task 14), and add it to the dependency array:
 
 ```typescript
 // Add to SplineCanvasProps:
