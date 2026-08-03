@@ -12,6 +12,14 @@ interface BoardStateValue {
   canUndo: boolean;
   canRedo: boolean;
   resetBoard: (board: Board) => void;
+  /**
+   * Increments exactly once per `resetBoard` call (New/Open), and never on ordinary
+   * `dispatch`/`undo`/`redo` board changes. Consumers that hold view state derived from
+   * the *previous* board's shape (e.g. BoardEditorPanel's viewMode/viewport) can watch this
+   * to distinguish "the board changed because of a full reset" from "the board changed via
+   * an incremental edit" - a distinction the `board` object reference alone doesn't carry.
+   */
+  resetVersion: number;
 }
 
 const BoardStateContext = createContext<BoardStateValue | null>(null);
@@ -21,7 +29,7 @@ export function BoardStateProvider({ children }: { children: ReactNode }) {
   const boardRef = useRef(board);
   boardRef.current = board;
   const historyRef = useRef(new BoardCommandHistory<Board>());
-  const [, forceRender] = useState(0);
+  const [resetVersion, forceRender] = useState(0);
 
   useEffect(() => {
     const timeout = setTimeout(() => saveAutosavedBoard(board), 500);
@@ -75,6 +83,7 @@ export function BoardStateProvider({ children }: { children: ReactNode }) {
     canUndo: historyRef.current.canUndo(),
     canRedo: historyRef.current.canRedo(),
     resetBoard,
+    resetVersion,
   };
 
   return <BoardStateContext.Provider value={value}>{children}</BoardStateContext.Provider>;

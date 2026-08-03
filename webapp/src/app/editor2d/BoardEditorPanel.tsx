@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Board } from '../../core/board/types';
 import { BezierSpline } from '../../core/bezier/bezierSpline';
 import { getLength } from '../../core/board/board';
@@ -139,7 +139,7 @@ function CrossSectionRow({
  *    cross-sections remain at all).
  */
 export function BoardEditorPanel() {
-  const { board, dispatch } = useBoardState();
+  const { board, dispatch, resetVersion } = useBoardState();
   const [viewMode, setViewMode] = useState<ViewMode>('outline');
   const [viewport, setViewport] = useState<Viewport>(() => fitViewport(board.outline, CANVAS_WIDTH, CANVAS_HEIGHT, 30, false));
 
@@ -152,6 +152,23 @@ export function BoardEditorPanel() {
     const flipY = mode !== 'outline';
     setViewport(fitViewport(spline, CANVAS_WIDTH, CANVAS_HEIGHT, 30, flipY));
   }
+
+  // `resetVersion` only increments on a full New/Open reset (see BoardStateContext), never
+  // on ordinary dispatch/undo/redo edits - so this only fires when `board` has just been
+  // swapped for a wholly unrelated one. viewMode/viewport are otherwise-persistent local
+  // state (Editor2D's remembered tab + pan/zoom, deliberately NOT reset on every board
+  // change so it survives normal edits) that would otherwise stay pointed at the OLD
+  // board's now-meaningless cross-section position and framing. Skip the very first render
+  // (ref pre-seeded to the initial resetVersion) so mount doesn't immediately re-fit onto
+  // the same board the initializer already fit.
+  const lastResetVersion = useRef(resetVersion);
+  useEffect(() => {
+    if (resetVersion !== lastResetVersion.current) {
+      lastResetVersion.current = resetVersion;
+      setViewMode('outline');
+      setViewport(fitViewport(board.outline, CANVAS_WIDTH, CANVAS_HEIGHT, 30, false));
+    }
+  }, [resetVersion, board]);
 
   // If the cross-section the user was editing gets removed out from under them (not just
   // reordered - findActiveCrossSectionIndex only returns null when no real cross-section
