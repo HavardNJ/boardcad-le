@@ -3827,6 +3827,7 @@ export interface SplineCanvasProps {
   onPointerDown?: (event: React.PointerEvent<HTMLCanvasElement>) => void;
   onPointerMove?: (event: React.PointerEvent<HTMLCanvasElement>) => void;
   onPointerUp?: (event: React.PointerEvent<HTMLCanvasElement>) => void;
+  onPointerCancel?: (event: React.PointerEvent<HTMLCanvasElement>) => void;
   onDoubleClick?: (event: React.MouseEvent<HTMLCanvasElement>) => void;
 }
 
@@ -3843,7 +3844,7 @@ function drawHandle(ctx: CanvasRenderingContext2D, p: Point2D, selected: boolean
 }
 
 export function SplineCanvas(props: SplineCanvasProps) {
-  const { spline, viewport, selection, onPointerDown, onPointerMove, onPointerUp, onDoubleClick } = props;
+  const { spline, viewport, selection, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onDoubleClick } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // `useLayoutEffect`, not `useEffect`: changing the canvas's width/height attributes below
@@ -3900,6 +3901,7 @@ export function SplineCanvas(props: SplineCanvasProps) {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       onDoubleClick={onDoubleClick}
       style={{ touchAction: 'none', border: '1px solid #cbd5e1' }}
     />
@@ -3961,6 +3963,7 @@ Create `webapp/src/app/editor2d/Editor2D.tsx`:
 import { useRef, useState } from 'react';
 import type { Point2D } from '../../core/bezier/point';
 import { BezierSpline } from '../../core/bezier/bezierSpline';
+import { END_POINT } from '../../core/bezier/bezierKnot';
 import * as vec from '../../core/bezier/vecMath';
 import { moveControlPointCommand, moveKnotTangent, addControlPointCommand, deleteControlPointCommand } from '../../core/commands/editCommands';
 import type { SplineRef } from '../../core/commands/splineRef';
@@ -3979,6 +3982,26 @@ const HIT_RADIUS_PX = 8;
 function eventToScreenPos(event: React.PointerEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>): Point2D {
   const rect = event.currentTarget.getBoundingClientRect();
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+}
+
+/**
+ * `spline.clone()` deep-copies each knot's points but NOT its `.slave` reference (see
+ * `BezierKnot.clone()`'s doc comment) - a knot cloned from `board.deck`'s or
+ * `board.bottom`'s nose/tail (slave-linked by `setLocks()`) would still have `.slave`
+ * pointing at the REAL, live knot on the real board. Since this preview is a scratch,
+ * render-only copy that's mutated directly (bypassing `dispatch`/`cloneBoard`) on every
+ * pointermove, leaving `.slave` intact would let `updateSlave()` reach through it and
+ * mutate the live board in place mid-drag - outside undo history, outside React state.
+ * Stripping `.slave` here (the preview never needs real slave-sync; it's discarded once
+ * the real command runs and produces a properly `cloneBoard`+`setLocks`-rebound board)
+ * makes that impossible.
+ */
+function clonePreviewSpline(spline: BezierSpline): BezierSpline {
+  const preview = spline.clone();
+  for (let i = 0; i < preview.getNrOfControlPoints(); i++) {
+    preview.getControlPoint(i).slave = null;
+  }
+  return preview;
 }
 
 export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
@@ -4012,7 +4035,7 @@ export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
     if (hit == null) return;
 
     dragRef.current = hit;
-    setPreviewSpline(spline.clone());
+    setPreviewSpline(clonePreviewSpline(spline));
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
@@ -4041,9 +4064,27 @@ export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
     setPreviewSpline(null);
   }
 
+  function onPointerCancel() {
+    // Gesture was cancelled (touch reinterpreted, stylus left range, OS interruption) -
+    // clear drag state WITHOUT dispatching; a cancelled gesture shouldn't commit a change.
+    dragRef.current = null;
+    setPreviewSpline(null);
+  }
+
   function onDoubleClick(event: React.MouseEvent<HTMLCanvasElement>) {
     const boardPos = screenToBoard(viewport, eventToScreenPos(event));
-    dispatch('Add control point', (board) => addControlPointCommand(board, splineRef, boardPos).board);
+    // dispatch's commandFn only returns a Board, so capture the inserted knot's index via
+    // a closure variable it writes into - safe because dispatch invokes commandFn
+    // synchronously, not deferred inside a setState updater (see Task 12).
+    let newKnotIndex = -1;
+    dispatch('Add control point', (board) => {
+      const result = addControlPointCommand(board, splineRef, boardPos);
+      newKnotIndex = result.knotIndex;
+      return result.board;
+    });
+    if (newKnotIndex >= 0) {
+      setSelection({ knotIndex: newKnotIndex, which: END_POINT });
+    }
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -4062,6 +4103,7 @@ export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
         onDoubleClick={onDoubleClick}
       />
     </div>
@@ -4107,7 +4149,7 @@ In `webapp/src/app/editor2d/SplineCanvas.tsx`, add a `guidePoints?: Point2D[]` p
 guidePoints?: Point2D[];
 
 // Destructure it alongside the other props:
-const { spline, viewport, selection, guidePoints, onPointerDown, onPointerMove, onPointerUp, onDoubleClick } = props;
+const { spline, viewport, selection, guidePoints, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onDoubleClick } = props;
 
 // Add at the end of the drawing effect, before the closing brace, and add `guidePoints` to the dependency array:
 if (guidePoints) {
@@ -4136,7 +4178,8 @@ isCrossSection: boolean;
 const [mode, setMode] = useState<'edit' | 'guide'>('edit');
 const [guidePoints, setGuidePoints] = useState<Point2D[]>([]);
 
-// Replace onPointerDown's body with a mode branch:
+// Replace onPointerDown's body with a mode branch (keep using clonePreviewSpline, not a
+// bare spline.clone(), for the drag-preview branch - see Task 15's slave-reference fix):
 function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
   const screenPos = eventToScreenPos(event);
   if (mode === 'guide') {
@@ -4149,7 +4192,7 @@ function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
   if (hit == null) return;
 
   dragRef.current = hit;
-  setPreviewSpline(spline.clone());
+  setPreviewSpline(clonePreviewSpline(spline));
   event.currentTarget.setPointerCapture(event.pointerId);
 }
 
@@ -4178,6 +4221,7 @@ return (
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       onDoubleClick={onDoubleClick}
     />
   </div>
