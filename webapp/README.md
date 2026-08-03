@@ -17,6 +17,12 @@ Everything runs in the browser — no backend, no account, no deployment. Board
 state autosaves to `localStorage` continuously; explicit Save downloads a
 `.json` file, and Open loads one back in.
 
+`npm test` runs the `core` unit test suite, `npm run build` type-checks and
+produces a production build, and `npm run lint` runs oxlint.
+
+Undo/Redo are also available via Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z (disabled
+while typing in a text field).
+
 ## Architecture
 
 - `src/core/` — pure TypeScript, no React or DOM dependency. Ported from the
