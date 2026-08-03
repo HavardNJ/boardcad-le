@@ -14,7 +14,7 @@ import {
 import { resolveSpline, notifyChanged, type SplineRef } from './splineRef';
 
 /** Port of the continuity-mirror branch of BrdEditCommand.moveControlPoints: mutates `which`'s point to (x,y); if the knot is continuous, mirrors the *direction* of the opposite tangent while preserving its own length. */
-function moveKnotTangent(knot: BezierKnot, which: 1 | 2, x: number, y: number): void {
+export function moveKnotTangent(knot: BezierKnot, which: 1 | 2, x: number, y: number): void {
   knot.setLocation(which, x, y);
   if (!knot.continuous) return;
 
