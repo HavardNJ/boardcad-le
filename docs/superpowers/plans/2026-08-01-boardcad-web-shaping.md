@@ -4201,11 +4201,35 @@ function fitCurve() {
   setGuidePoints([]);
 }
 
+// Add a mode check as the first line of the EXISTING onDoubleClick and onKeyDown (from
+// Task 15) - without this, double-clicking while placing guide points close together
+// (a plausible motion when tracing a reference curve) still inserts a real control point,
+// and Delete/Backspace can delete a stale selection left over from edit mode:
+function onDoubleClick(event: React.MouseEvent<HTMLCanvasElement>) {
+  if (mode !== 'edit') return;
+  // ...rest of the function body is unchanged from Task 15
+}
+
+function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+  if (mode !== 'edit') return;
+  // ...rest of the function body is unchanged from Task 15
+}
+
+// toggleMode reads `mode` directly rather than via a setMode functional updater - it's
+// only ever called from this button's onClick (a real event handler, not a batched
+// context), so the closure's `mode` is always current; no functional-updater form needed:
+function toggleMode() {
+  if (mode === 'guide') {
+    setGuidePoints([]);
+  }
+  setMode(mode === 'edit' ? 'guide' : 'edit');
+}
+
 // Extend the returned JSX to add a toolbar and pass guidePoints to SplineCanvas:
 return (
   <div tabIndex={0} onKeyDown={onKeyDown}>
     <div>
-      <button onClick={() => setMode(mode === 'edit' ? 'guide' : 'edit')}>{mode === 'edit' ? 'Add Guide Points' : 'Editing Points'}</button>
+      <button onClick={toggleMode}>{mode === 'edit' ? 'Add Guide Points' : 'Edit Points'}</button>
       {mode === 'guide' && (
         <>
           <button onClick={fitCurve} disabled={guidePoints.length === 0}>Fit Curve</button>
