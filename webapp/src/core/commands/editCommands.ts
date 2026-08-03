@@ -154,6 +154,56 @@ export function fitCurveFromGuidePointsCommand(board: Board, ref: SplineRef, gui
   return next;
 }
 
+/**
+ * Small enough to be invisible in normal use (cm), large enough to keep positions safely
+ * distinguishable by both floating-point equality and interpolation math.
+ */
+export const CROSS_SECTION_MIN_SPACING = 0.1;
+
+/**
+ * Nudges `desiredPosition` away from every OTHER cross-section's position (boundaries
+ * included; `excludeIndex` skips comparing a cross-section against itself when moving an
+ * existing one) so no two cross-sections in the result end up within
+ * `CROSS_SECTION_MIN_SPACING` of each other.
+ *
+ * Two cross-sections at (near-)identical positions are ill-defined for more than just the
+ * app layer's position-based selection tracking (see app/editor2d/BoardEditorPanel): this
+ * board's own `getInterpolatedCrossSection` divides by `secondPos - firstPos`, so a
+ * near-zero gap between adjacent cross-sections blows up that division. This is a genuine
+ * core-model invariant, not a UI-only concern - hence living here rather than in the app
+ * layer, and applying to BOTH `addCrossSectionCommand` (which can otherwise duplicate the
+ * position of an already-added cross-section, e.g. two consecutive "Add Cross-Section"
+ * clicks at the board's midpoint) and `moveCrossSectionCommand` (which can otherwise move a
+ * cross-section directly onto another's exact position).
+ *
+ * The scan-and-bump loop re-checks ALL positions after every bump (not just the one that
+ * triggered it), so a bump that lands within range of a third cross-section keeps pushing
+ * until no collision remains - bounded by `board.crossSections.length` iterations since
+ * each full pass either finds zero collisions (loop exits) or resolves at least the
+ * currently-nearest one. The final clamp back into the board's valid range is the
+ * "no unique position exists" safety net for a board so densely packed that nudging alone
+ * would push the position past the tail boundary; it does not re-scan for new collisions
+ * introduced by the clamp itself; a real product would need a denser-packing story, but
+ * that degenerate case is out of scope here.
+ */
+function resolveUniqueCrossSectionPosition(board: Board, desiredPosition: number, excludeIndex: number | null): number {
+  let position = desiredPosition;
+  let adjusted = true;
+  let guard = 0;
+  while (adjusted && guard <= board.crossSections.length) {
+    adjusted = false;
+    guard++;
+    for (let i = 0; i < board.crossSections.length; i++) {
+      if (i === excludeIndex) continue;
+      if (Math.abs(board.crossSections[i].position - position) < CROSS_SECTION_MIN_SPACING) {
+        position += CROSS_SECTION_MIN_SPACING;
+        adjusted = true;
+      }
+    }
+  }
+  return Math.min(Math.max(position, 0.01), getLength(board) - 0.01);
+}
+
 /** Port of BrdAddCrossSectionCommand: interpolates a new cross-section at `pos` and inserts it among the real (non-boundary) cross-sections. */
 export function addCrossSectionCommand(board: Board, pos: number): Board {
   const next = cloneBoard(board);
@@ -163,6 +213,10 @@ export function addCrossSectionCommand(board: Board, pos: number): Board {
   const interpolated = getInterpolatedCrossSection(next, pos);
   if (interpolated == null) return next;
 
+  // Nudge before pushing: resolveUniqueCrossSectionPosition compares against
+  // next.crossSections as it currently stands (interpolated isn't in there yet), so no
+  // excludeIndex is needed here.
+  interpolated.position = resolveUniqueCrossSectionPosition(next, interpolated.position, null);
   next.crossSections.push(interpolated);
   sortCrossSections(next);
   return next;
@@ -176,13 +230,28 @@ export function removeCrossSectionCommand(board: Board, index: number): Board {
   return next;
 }
 
-export function moveCrossSectionCommand(board: Board, index: number, newPosition: number): Board {
+/**
+ * Returns the actual resulting position alongside the board (not just the board) because
+ * the caller can't reliably recover it afterward: `resolveUniqueCrossSectionPosition` may
+ * have nudged `newPosition` away from a collision, and `sortCrossSections` may then have
+ * moved the entry to a different array index - so `result.crossSections[index]` after the
+ * fact is not guaranteed to still be the cross-section that was just moved. Returning the
+ * exact value computed here (before any of that reshuffling) sidesteps needing to re-find
+ * it by any kind of nearest-position search, which is the same fragile-by-construction
+ * pattern this file's `resolveUniqueCrossSectionPosition` and the app layer's
+ * `findActiveCrossSectionIndex` exist to work around, not to lean on further. Mirrors
+ * `addControlPointCommand`'s existing `{ board, knotIndex }` shape for the same reason.
+ */
+export function moveCrossSectionCommand(board: Board, index: number, newPosition: number): { board: Board; position: number } {
   const next = cloneBoard(board);
-  if (index <= 0 || index >= next.crossSections.length - 1) return next;
+  if (index <= 0 || index >= next.crossSections.length - 1) {
+    return { board: next, position: next.crossSections[index]?.position ?? newPosition };
+  }
   const clamped = Math.min(Math.max(newPosition, 0.01), getLength(next) - 0.01);
-  next.crossSections[index].position = clamped;
+  const resolved = resolveUniqueCrossSectionPosition(next, clamped, index);
+  next.crossSections[index].position = resolved;
   sortCrossSections(next);
-  return next;
+  return { board: next, position: resolved };
 }
 
 export function updateMetadataCommand(

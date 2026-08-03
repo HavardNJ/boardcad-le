@@ -13,6 +13,7 @@ import {
   removeCrossSectionCommand,
   moveCrossSectionCommand,
   scaleBoardCommand,
+  CROSS_SECTION_MIN_SPACING,
 } from './editCommands';
 
 function boardWithSingleOutlineKnot(): Board {
@@ -156,7 +157,8 @@ describe('cross-section commands', () => {
   it('moveCrossSectionCommand refuses to move boundary cross-sections', () => {
     const board = newBoard();
     const result = moveCrossSectionCommand(board, 0, getLength(board) / 2);
-    expect(result.crossSections[0].position).toBe(board.crossSections[0].position);
+    expect(result.board.crossSections[0].position).toBe(board.crossSections[0].position);
+    expect(result.position).toBe(board.crossSections[0].position);
   });
 
   it('moveCrossSectionCommand moves a real cross-section to the requested (clamped) position', () => {
@@ -167,7 +169,62 @@ describe('cross-section commands', () => {
     );
     const newPos = getLength(withReal) * 0.75;
     const result = moveCrossSectionCommand(withReal, realIndex, newPos);
-    expect(result.crossSections[realIndex].position).toBeCloseTo(newPos, 5);
+    expect(result.board.crossSections[realIndex].position).toBeCloseTo(newPos, 5);
+    expect(result.position).toBeCloseTo(newPos, 5);
+  });
+});
+
+describe('cross-section position uniqueness', () => {
+  it('addCrossSectionCommand nudges a new cross-section away from an existing one added at the identical position', () => {
+    // Regression: two consecutive "Add Cross-Section" clicks both call
+    // addCrossSectionCommand(board, getLength(board) / 2) - the exact same midpoint - which
+    // used to produce two cross-sections at an identical position, ill-defined for both
+    // getInterpolatedCrossSection's interpolation math and any position-based identity
+    // tracking (e.g. the app layer's selection tracking).
+    const board = newBoard();
+    const mid = getLength(board) / 2;
+    const withFirst = addCrossSectionCommand(board, mid);
+    const withSecond = addCrossSectionCommand(withFirst, mid);
+
+    expect(withSecond.crossSections.length).toBe(board.crossSections.length + 2);
+    const realPositions = withSecond.crossSections.slice(1, -1).map((cs) => cs.position);
+    expect(realPositions.length).toBe(2);
+    expect(Math.abs(realPositions[1] - realPositions[0])).toBeGreaterThanOrEqual(CROSS_SECTION_MIN_SPACING - 1e-9);
+  });
+
+  it('moveCrossSectionCommand nudges a cross-section away from another cross-section it is moved onto', () => {
+    const board = newBoard();
+    const length = getLength(board);
+    const withFirst = addCrossSectionCommand(board, length * 0.3);
+    const withSecond = addCrossSectionCommand(withFirst, length * 0.7);
+    const targetPosition = withSecond.crossSections[2].position; // the ~0.7L real cross-section
+
+    const result = moveCrossSectionCommand(withSecond, 1, targetPosition);
+
+    // The moved cross-section's exact final position is `result.position`, not something
+    // that needs to be re-found in `result.board` by index or nearest-match - see the
+    // command's own doc comment for why that would be unreliable after sortCrossSections.
+    expect(result.position).not.toBeCloseTo(targetPosition, 2);
+    const realPositions = result.board.crossSections
+      .slice(1, -1)
+      .map((cs) => cs.position)
+      .sort((a, b) => a - b);
+    expect(realPositions.length).toBe(2);
+    expect(realPositions).toContain(result.position);
+    expect(Math.abs(realPositions[1] - realPositions[0])).toBeGreaterThanOrEqual(CROSS_SECTION_MIN_SPACING - 1e-9);
+  });
+
+  it('moveCrossSectionCommand still moves a cross-section normally when no collision occurs', () => {
+    // Guards against the uniqueness fix accidentally perturbing the non-colliding case
+    // covered by the existing "moves a real cross-section to the requested (clamped)
+    // position" test above.
+    const board = newBoard();
+    const withReal = addCrossSectionCommand(board, getLength(board) / 2);
+    const realIndex = 1;
+    const newPos = getLength(withReal) * 0.75;
+    const result = moveCrossSectionCommand(withReal, realIndex, newPos);
+    expect(result.board.crossSections[realIndex].position).toBeCloseTo(newPos, 5);
+    expect(result.position).toBeCloseTo(newPos, 5);
   });
 });
 

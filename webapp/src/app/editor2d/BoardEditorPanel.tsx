@@ -41,7 +41,13 @@ function resolveViewSpline(board: Board, mode: ViewMode, activeCrossSectionIndex
 
 function toSplineRef(mode: ViewMode, activeCrossSectionIndex: number | null): SplineRef {
   if (mode === 'outline' || mode === 'deck' || mode === 'bottom') return mode;
-  return { crossSection: activeCrossSectionIndex ?? 0 };
+  // Must agree with resolveViewSpline's null-fallback (also 'outline') - otherwise, for the
+  // one render where viewMode is still the cross-section variant but the tracked
+  // cross-section is gone (reachable via undo/redo/resetBoard removing it out from under
+  // the panel, not just this file's own onRemove guard), Editor2D would render the
+  // outline's shape while dispatching edits against `{crossSection: 0}` - a boundary
+  // spline's knot indices - a mismatched pair, not just a display glitch.
+  return activeCrossSectionIndex != null ? { crossSection: activeCrossSectionIndex } : 'outline';
 }
 
 function sameMode(a: ViewMode, b: ViewMode): boolean {
@@ -115,6 +121,23 @@ function CrossSectionRow({
   );
 }
 
+/**
+ * Cross-section selection is tracked by position (`viewMode`'s `crossSectionPosition`), not
+ * array index, re-resolved to the current array index every render via
+ * `findActiveCrossSectionIndex`'s nearest-position match - see that function's doc comment
+ * for why index alone isn't a stable identity across dispatches. That remembered position
+ * can go stale in three distinct ways, each handled by its own mechanism at its own call
+ * site rather than one central place, since each is triggered by a different event:
+ *  - The active row edits its OWN position -> `onCommitPosition` updates `viewMode` to the
+ *    actual committed position (read back from the command result, not the raw typed value).
+ *  - The active row is removed via this panel's own Remove button -> `onRemove` explicitly
+ *    falls back to the Outline tab (nearest-match alone wouldn't reliably detect this, since
+ *    some other remaining row is often still "nearest" to the stale anchor).
+ *  - The active row disappears some other way (undo/redo, resetBoard, or any future removal
+ *    path that doesn't go through this file's onRemove) -> the `useEffect` below falls back
+ *    to Outline whenever nearest-match itself comes up empty (only possible when zero real
+ *    cross-sections remain at all).
+ */
 export function BoardEditorPanel() {
   const { board, dispatch } = useBoardState();
   const [viewMode, setViewMode] = useState<ViewMode>('outline');
@@ -168,16 +191,31 @@ export function BoardEditorPanel() {
                 active={activeCrossSectionIndex === index}
                 onSelect={() => selectView({ crossSectionPosition: cs.position })}
                 onCommitPosition={(idx, value) => {
+                  // Read the ACTUAL resulting position back off the command's result rather
+                  // than trusting the raw typed `value`: moveCrossSectionCommand may clamp it
+                  // to the board's bounds and/or nudge it away from a collision (see
+                  // resolveUniqueCrossSectionPosition) - `value` alone would go stale
+                  // immediately for the same reason a remembered-but-uncommitted anchor does
+                  // below. `commandFn` runs synchronously inside `dispatch` (Task 12), so this
+                  // closure-capture is the same pattern Editor2D.tsx's onDoubleClick already
+                  // uses to read back addControlPointCommand's `knotIndex`.
+                  let actualPosition = value;
+                  dispatch('Move cross-section', (b) => {
+                    const result = moveCrossSectionCommand(b, idx, value);
+                    actualPosition = result.position;
+                    return result.board;
+                  });
+
                   // viewMode.crossSectionPosition is a remembered anchor for nearest-match
                   // re-resolution (see findActiveCrossSectionIndex) - if it's left stale after
                   // the ACTIVE row moves its own position, the anchor keeps pointing at the old
                   // position, and a large-enough move can put a neighboring row closer to that
                   // stale anchor than this row now is, silently reassigning selection to that
-                  // neighbor. Keep the anchor in sync when the row being committed is the active one.
+                  // neighbor. Keep the anchor in sync (using the actual committed position,
+                  // not the raw input) when the row being committed is the active one.
                   if (idx === activeCrossSectionIndex) {
-                    setViewMode({ crossSectionPosition: value });
+                    setViewMode({ crossSectionPosition: actualPosition });
                   }
-                  dispatch('Move cross-section', (b) => moveCrossSectionCommand(b, idx, value));
                 }}
                 onRemove={() => {
                   // findActiveCrossSectionIndex tracks by nearest-position, which is needed
