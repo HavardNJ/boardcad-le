@@ -26,6 +26,10 @@ export function screenToBoard(viewport: Viewport, p: Point2D): Point2D {
 
 /** Fits a spline's control-point bounding box into (width, height) with `padding` screen pixels on every side. */
 export function fitViewport(spline: BezierSpline, width: number, height: number, padding = 30, flipY = false): Viewport {
+  if (spline.getNrOfControlPoints() === 0) {
+    return { scale: 1, panX: width / 2, panY: height / 2, flipY, width, height };
+  }
+
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;

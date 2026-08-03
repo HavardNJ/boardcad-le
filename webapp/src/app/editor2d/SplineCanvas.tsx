@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { Point2D } from '../../core/bezier/point';
 import { BezierSpline } from '../../core/bezier/bezierSpline';
+import { END_POINT, NEXT_TANGENT, PREVIOUS_TANGENT } from '../../core/bezier/bezierKnot';
 import { boardToScreen, type Viewport } from './viewport';
 
 export interface KnotSelection {
@@ -34,7 +35,7 @@ export function SplineCanvas(props: SplineCanvasProps) {
   const { spline, viewport, selection, onPointerDown, onPointerMove, onPointerUp, onDoubleClick } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
@@ -70,9 +71,9 @@ export function SplineCanvas(props: SplineCanvasProps) {
       ctx.lineTo(next.x, next.y);
       ctx.stroke();
 
-      drawHandle(ctx, prev, isSelectedKnot && selection?.which === 1);
-      drawHandle(ctx, next, isSelectedKnot && selection?.which === 2);
-      drawEndpoint(ctx, endpoint, isSelectedKnot && selection?.which === 0);
+      drawHandle(ctx, prev, isSelectedKnot && selection?.which === PREVIOUS_TANGENT);
+      drawHandle(ctx, next, isSelectedKnot && selection?.which === NEXT_TANGENT);
+      drawEndpoint(ctx, endpoint, isSelectedKnot && selection?.which === END_POINT);
     }
   }, [spline, viewport, selection]);
 
