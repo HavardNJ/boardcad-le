@@ -4685,19 +4685,26 @@ git commit -m "Add view tabs and cross-section switcher (BoardEditorPanel) to ap
 Create `webapp/src/app/viewer3d/BoardMesh.tsx`:
 
 ```tsx
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import type { Board } from '../../core/board/types';
 import { buildSurfaceMesh } from '../../core/surface/surfaceMesh';
 
+// Denser than buildSurfaceMesh's own defaults (40/24): the 2D editor renders
+// splines analytically at arbitrary resolution, but the 3D preview bakes a
+// fixed-resolution triangle mesh, so we bias toward a smoother surface.
+const LENGTH_SPLITS = 60;
+const CROSS_SPLITS = 32;
+
 export function BoardMesh({ board }: { board: Board }) {
   const geometry = useMemo(() => {
-    const mesh = buildSurfaceMesh(board, 60, 32);
+    const mesh = buildSurfaceMesh(board, LENGTH_SPLITS, CROSS_SPLITS);
     const positions = mesh.positions;
 
     // core/surface uses (x=length, y=half-width, z=height); remap to Three's Y-up.
+    const vertexCount = positions.length / 3;
     const remapped = new Float32Array(positions.length);
-    for (let i = 0; i < positions.length / 3; i++) {
+    for (let i = 0; i < vertexCount; i++) {
       remapped[i * 3] = positions[i * 3]; // length -> X
       remapped[i * 3 + 1] = positions[i * 3 + 2]; // height -> Y
       remapped[i * 3 + 2] = positions[i * 3 + 1]; // width -> Z
@@ -4709,6 +4716,17 @@ export function BoardMesh({ board }: { board: Board }) {
     geo.computeVertexNormals();
     return geo;
   }, [board]);
+
+  // `new THREE.BufferGeometry()` built imperatively here is not owned by R3F's
+  // JSX reconciler (it's applied via a plain `geometry` prop, not declared as a
+  // JSX child), so it is never auto-disposed. Each board edit creates a new
+  // geometry via useMemo above; without this, the old geometry's GPU buffers
+  // (VBO/IBO) would leak on every dispatch. The cleanup runs right before the
+  // effect re-fires for the next `geometry` (i.e. right when the old one
+  // becomes unreferenced), and also on unmount.
+  useEffect(() => {
+    return () => geometry.dispose();
+  }, [geometry]);
 
   return (
     <mesh geometry={geometry}>
@@ -4725,18 +4743,23 @@ Create `webapp/src/app/viewer3d/Viewer3D.tsx`:
 ```tsx
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import { getLength } from '../../core/board/board';
 import { useBoardState } from '../state/BoardStateContext';
 import { BoardMesh } from './BoardMesh';
 
 export function Viewer3D() {
   const { board } = useBoardState();
+  // buildSurfaceMesh's coordinates run x=[0, length], not centered at the
+  // origin; point OrbitControls' orbit target at the board's midpoint so the
+  // initial view frames it, without translating core/surface's geometry itself.
+  const target: [number, number, number] = [getLength(board) / 2, 0, 0];
 
   return (
     <Canvas camera={{ position: [100, 60, 150], fov: 45 }} style={{ width: '100%', height: '480px' }}>
       <ambientLight intensity={0.6} />
       <directionalLight position={[100, 200, 100]} intensity={0.8} />
       <BoardMesh board={board} />
-      <OrbitControls />
+      <OrbitControls target={target} />
     </Canvas>
   );
 }
