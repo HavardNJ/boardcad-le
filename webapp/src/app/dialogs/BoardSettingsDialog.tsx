@@ -78,7 +78,20 @@ export function BoardSettingsDialog({ open, onClose }: BoardSettingsDialogProps)
     // the "open" dialog, which could silently apply this dialog's stale fields to a
     // just-reset board - see BoardEditorPanel's resetVersion handling for the analogous
     // stale-view problem on the 2D editor side.
-    <div className="dialogBackdrop" onClick={onClose}>
+    //
+    // Close only when the click's target IS the backdrop itself, not merely a
+    // stopPropagation()-guarded bubble from inside .dialog: a text-selection drag that
+    // starts inside an input and is released outside the dialog box (but still within the
+    // backdrop) makes the browser retarget the resulting click to the nearest common
+    // ancestor of mousedown/mouseup, which can be the backdrop - bypassing an inner
+    // stopPropagation() entirely and closing the dialog, discarding in-progress edits the
+    // user never intended to abandon. Target-equality is immune to that retargeting.
+    <div
+      className="dialogBackdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
         ref={dialogRef}
         role="dialog"
@@ -86,7 +99,6 @@ export function BoardSettingsDialog({ open, onClose }: BoardSettingsDialogProps)
         aria-modal="true"
         tabIndex={-1}
         className="dialog"
-        onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           if (e.key === 'Escape') onClose();
         }}
