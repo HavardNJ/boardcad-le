@@ -3310,9 +3310,22 @@ function splineToJson(spline: BezierSpline): SplineJson {
   return knots;
 }
 
+function isTuple(value: unknown): value is [number, number] {
+  return Array.isArray(value) && value.length === 2 && typeof value[0] === 'number' && typeof value[1] === 'number';
+}
+
+function isKnotJson(value: unknown): value is KnotJson {
+  if (typeof value !== 'object' || value == null) return false;
+  const k = value as Partial<KnotJson>;
+  return isTuple(k.point) && isTuple(k.tangentPrev) && isTuple(k.tangentNext) && typeof k.continuous === 'boolean';
+}
+
 function splineFromJson(json: SplineJson): BezierSpline {
   const spline = new BezierSpline();
   for (const k of json) {
+    if (!isKnotJson(k)) {
+      throw new BoardFileError('Board file contains a malformed control point');
+    }
     const knot = new BezierKnot(k.point[0], k.point[1], k.tangentPrev[0], k.tangentPrev[1], k.tangentNext[0], k.tangentNext[1]);
     knot.continuous = k.continuous;
     spline.append(knot);
@@ -3357,10 +3370,12 @@ export function deserializeBoard(text: string): Board {
     throw new BoardFileError('Board file is missing required spline data');
   }
 
-  const crossSections: CrossSection[] = json.crossSections.map((cs) => ({
-    position: cs.position,
-    spline: splineFromJson(cs.spline),
-  }));
+  const crossSections: CrossSection[] = json.crossSections.map((cs) => {
+    if (typeof cs !== 'object' || cs == null || typeof cs.position !== 'number' || !Array.isArray(cs.spline)) {
+      throw new BoardFileError('Board file contains a malformed cross-section');
+    }
+    return { position: cs.position, spline: splineFromJson(cs.spline) };
+  });
 
   const board: Board = {
     name: json.name ?? '',
