@@ -17,15 +17,16 @@ const BoardStateContext = createContext<BoardStateValue | null>(null);
 
 export function BoardStateProvider({ children }: { children: ReactNode }) {
   const [board, setBoard] = useState<Board>(() => newBoard());
+  const boardRef = useRef(board);
+  boardRef.current = board;
   const historyRef = useRef(new BoardCommandHistory<Board>());
   const [, forceRender] = useState(0);
 
   const dispatch = useCallback((description: string, commandFn: (board: Board) => Board) => {
-    setBoard((current) => {
-      const after = commandFn(current);
-      historyRef.current.execute(description, current, after);
-      return after;
-    });
+    const current = boardRef.current;
+    const after = commandFn(current);
+    historyRef.current.execute(description, current, after);
+    setBoard(after);
   }, []);
 
   const undo = useCallback(() => {
