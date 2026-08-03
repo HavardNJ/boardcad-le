@@ -226,6 +226,72 @@ describe('cross-section position uniqueness', () => {
     expect(result.board.crossSections[realIndex].position).toBeCloseTo(newPos, 5);
     expect(result.position).toBeCloseTo(newPos, 5);
   });
+
+  /** Every pair of cross-sections (including both boundaries) must be at least
+   *  CROSS_SECTION_MIN_SPACING apart - the invariant this whole describe block exists to
+   *  guarantee, not just "doesn't crash" or "isn't exactly equal". */
+  function expectFullPairwiseSpacing(board: Board) {
+    const positions = board.crossSections.map((cs) => cs.position).sort((a, b) => a - b);
+    for (let i = 0; i < positions.length - 1; i++) {
+      expect(positions[i + 1] - positions[i]).toBeGreaterThanOrEqual(CROSS_SECTION_MIN_SPACING - 1e-9);
+    }
+  }
+
+  it('addCrossSectionCommand near the tail boundary maintains full spacing from both boundaries', () => {
+    // Regression: addCrossSectionCommand(newBoard(), 179.95) on a 180cm board used to nudge
+    // the position past the tail boundary (to 180.15) and then clamp it straight back to
+    // 179.99 - only 0.01cm from the tail, well inside CROSS_SECTION_MIN_SPACING.
+    const board = newBoard();
+    const length = getLength(board);
+    const result = addCrossSectionCommand(board, length - CROSS_SECTION_MIN_SPACING / 2);
+
+    expect(result.crossSections.length).toBe(board.crossSections.length + 1);
+    expectFullPairwiseSpacing(result);
+  });
+
+  it('addCrossSectionCommand near the head boundary maintains full spacing from both boundaries', () => {
+    const board = newBoard();
+    const result = addCrossSectionCommand(board, CROSS_SECTION_MIN_SPACING / 2);
+
+    expect(result.crossSections.length).toBe(board.crossSections.length + 1);
+    expectFullPairwiseSpacing(result);
+  });
+
+  it('moveCrossSectionCommand onto the tail boundary maintains full spacing from both boundaries', () => {
+    const board = newBoard();
+    const length = getLength(board);
+    const withReal = addCrossSectionCommand(board, length / 2);
+
+    const result = moveCrossSectionCommand(withReal, 1, length - CROSS_SECTION_MIN_SPACING / 2);
+
+    expectFullPairwiseSpacing(result.board);
+  });
+
+  it('moveCrossSectionCommand onto the head boundary maintains full spacing from both boundaries', () => {
+    const board = newBoard();
+    const withReal = addCrossSectionCommand(board, getLength(board) / 2);
+
+    const result = moveCrossSectionCommand(withReal, 1, CROSS_SECTION_MIN_SPACING / 2);
+
+    expectFullPairwiseSpacing(result.board);
+  });
+
+  it('maintains full spacing (including boundaries) across a denser board with an add and a move near the tail', () => {
+    // A slightly more realistic scenario than a single isolated add/move: several real
+    // cross-sections already present, then a boundary-adjacent add and a boundary-adjacent
+    // move, checking the FULL pairwise invariant (not just the two entries directly involved)
+    // holds across the whole board afterward.
+    const board = newBoard();
+    const length = getLength(board);
+    let b = addCrossSectionCommand(board, length * 0.25);
+    b = addCrossSectionCommand(b, length * 0.5);
+    b = addCrossSectionCommand(b, length * 0.75);
+    b = addCrossSectionCommand(b, length - CROSS_SECTION_MIN_SPACING / 2);
+    expectFullPairwiseSpacing(b);
+
+    const moveResult = moveCrossSectionCommand(b, 1, length - CROSS_SECTION_MIN_SPACING / 2);
+    expectFullPairwiseSpacing(moveResult.board);
+  });
 });
 
 describe('scaleBoardCommand', () => {

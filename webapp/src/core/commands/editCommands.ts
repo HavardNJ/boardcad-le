@@ -161,10 +161,10 @@ export function fitCurveFromGuidePointsCommand(board: Board, ref: SplineRef, gui
 export const CROSS_SECTION_MIN_SPACING = 0.1;
 
 /**
- * Nudges `desiredPosition` away from every OTHER cross-section's position (boundaries
- * included; `excludeIndex` skips comparing a cross-section against itself when moving an
- * existing one) so no two cross-sections in the result end up within
- * `CROSS_SECTION_MIN_SPACING` of each other.
+ * Finds the position closest to `desiredPosition` that stays at least
+ * `CROSS_SECTION_MIN_SPACING` away from EVERY other cross-section in `board.crossSections`
+ * - boundaries included; `excludeIndex` is the only entry skipped (used when moving an
+ * existing cross-section so it isn't compared against itself).
  *
  * Two cross-sections at (near-)identical positions are ill-defined for more than just the
  * app layer's position-based selection tracking (see app/editor2d/BoardEditorPanel): this
@@ -174,34 +174,67 @@ export const CROSS_SECTION_MIN_SPACING = 0.1;
  * layer, and applying to BOTH `addCrossSectionCommand` (which can otherwise duplicate the
  * position of an already-added cross-section, e.g. two consecutive "Add Cross-Section"
  * clicks at the board's midpoint) and `moveCrossSectionCommand` (which can otherwise move a
- * cross-section directly onto another's exact position).
+ * cross-section directly onto another's exact position, INCLUDING a boundary's - a naive
+ * "always nudge forward, clamp at the end" version of this function is provably unsound
+ * near the tail: nudging away from a near-tail collision walks position OUTSIDE
+ * [0, getLength(board)], and clamping it back in afterward undoes the nudge, landing right
+ * back in the collision it was trying to escape).
  *
- * The scan-and-bump loop re-checks ALL positions after every bump (not just the one that
- * triggered it), so a bump that lands within range of a third cross-section keeps pushing
- * until no collision remains - bounded by `board.crossSections.length` iterations since
- * each full pass either finds zero collisions (loop exits) or resolves at least the
- * currently-nearest one. The final clamp back into the board's valid range is the
- * "no unique position exists" safety net for a board so densely packed that nudging alone
- * would push the position past the tail boundary; it does not re-scan for new collisions
- * introduced by the clamp itself; a real product would need a denser-packing story, but
- * that degenerate case is out of scope here.
+ * Both boundary cross-sections (index 0 at position 0, and the last at position
+ * `getLength(board)`) are ordinary entries in `board.crossSections`, so they take part in
+ * this same "forbidden points" list rather than needing separate boundary-clamping logic -
+ * this relies on the codebase-wide invariant that boundary positions are always exactly 0
+ * and `getLength(board)` (enforced by `moveCrossSectionCommand`/`removeCrossSectionCommand`
+ * both refusing to touch index 0 or the last index, and by `scaleBoard` explicitly
+ * re-pinning the last boundary to the new length on every scale).
+ *
+ * Implementation: sorts the forbidden positions, walks every gap between consecutive ones
+ * (there are no gaps to consider before the first or after the last, since those ARE the
+ * board's own boundaries), and for each gap wide enough to hold a point at least
+ * `CROSS_SECTION_MIN_SPACING` from both of its edges, computes the closest point within that
+ * gap's safe sub-range to `desiredPosition`. Returns whichever candidate is closest to
+ * `desiredPosition` overall. This is a single deterministic pass over a fixed-size list -
+ * no iterative nudge-and-recheck loop - so termination is structural, not an empirically
+ * observed bound on retry count.
+ *
+ * Degenerate case: if the board is packed so densely that NO gap anywhere has room for a
+ * fully-spaced point (every gap narrower than `2 * CROSS_SECTION_MIN_SPACING`), there is no
+ * position that can satisfy the invariant against every neighbor simultaneously - a genuine
+ * "too dense to place" scenario a real product would need to refuse outright rather than
+ * silently nudge through. Out of scope here; this falls back to clamping `desiredPosition`
+ * into `[CROSS_SECTION_MIN_SPACING, length - CROSS_SECTION_MIN_SPACING]`, which keeps it
+ * inside the board's own bounds even though it may still collide with some interior
+ * cross-section in this pathological case.
  */
 function resolveUniqueCrossSectionPosition(board: Board, desiredPosition: number, excludeIndex: number | null): number {
-  let position = desiredPosition;
-  let adjusted = true;
-  let guard = 0;
-  while (adjusted && guard <= board.crossSections.length) {
-    adjusted = false;
-    guard++;
-    for (let i = 0; i < board.crossSections.length; i++) {
-      if (i === excludeIndex) continue;
-      if (Math.abs(board.crossSections[i].position - position) < CROSS_SECTION_MIN_SPACING) {
-        position += CROSS_SECTION_MIN_SPACING;
-        adjusted = true;
-      }
+  const length = getLength(board);
+  const forbidden = board.crossSections
+    .filter((_, i) => i !== excludeIndex)
+    .map((cs) => cs.position)
+    .sort((a, b) => a - b);
+
+  let best: number | null = null;
+  let bestDist = Infinity;
+
+  for (let i = 0; i < forbidden.length - 1; i++) {
+    const safeStart = forbidden[i] + CROSS_SECTION_MIN_SPACING;
+    const safeEnd = forbidden[i + 1] - CROSS_SECTION_MIN_SPACING;
+    if (safeStart > safeEnd) continue; // gap too narrow to hold a fully-spaced point
+
+    const candidate = Math.min(Math.max(desiredPosition, safeStart), safeEnd);
+    const dist = Math.abs(candidate - desiredPosition);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = candidate;
     }
   }
-  return Math.min(Math.max(position, 0.01), getLength(board) - 0.01);
+
+  if (best != null) return best;
+
+  // Degenerate fallback - see doc comment above. Also covers forbidden.length < 2, which
+  // shouldn't happen given the boundary invariant this function relies on, but a board with
+  // fewer than 2 remaining reference points has no gaps to walk regardless of why.
+  return Math.min(Math.max(desiredPosition, CROSS_SECTION_MIN_SPACING), length - CROSS_SECTION_MIN_SPACING);
 }
 
 /** Port of BrdAddCrossSectionCommand: interpolates a new cross-section at `pos` and inserts it among the real (non-boundary) cross-sections. */
@@ -247,8 +280,13 @@ export function moveCrossSectionCommand(board: Board, index: number, newPosition
   if (index <= 0 || index >= next.crossSections.length - 1) {
     return { board: next, position: next.crossSections[index]?.position ?? newPosition };
   }
-  const clamped = Math.min(Math.max(newPosition, 0.01), getLength(next) - 0.01);
-  const resolved = resolveUniqueCrossSectionPosition(next, clamped, index);
+  // resolveUniqueCrossSectionPosition handles both range-clamping and boundary/collision
+  // avoidance as one coherent pass - see its doc comment for why doing the range clamp here
+  // first (as an earlier version of this function did, with a plain [0.01, length-0.01]
+  // range that didn't account for CROSS_SECTION_MIN_SPACING) was the proximate cause of a
+  // near-boundary position getting nudged out of range and then clamped right back into a
+  // boundary collision.
+  const resolved = resolveUniqueCrossSectionPosition(next, newPosition, index);
   next.crossSections[index].position = resolved;
   sortCrossSections(next);
   return { board: next, position: resolved };
