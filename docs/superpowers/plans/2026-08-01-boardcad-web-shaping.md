@@ -3556,6 +3556,15 @@ interface BoardStateValue {
   canUndo: boolean;
   canRedo: boolean;
   resetBoard: (board: Board) => void;
+  /**
+   * Increments exactly once per `resetBoard` call (New/Open), and never on ordinary
+   * `dispatch`/`undo`/`redo` board changes. Added in Task 20's review: consumers that hold
+   * view state derived from the *previous* board's shape (e.g. BoardEditorPanel's
+   * viewMode/viewport, Task 17) can watch this to distinguish "the board changed because of
+   * a full reset" from "the board changed via an incremental edit" - a distinction the
+   * `board` object reference alone doesn't carry.
+   */
+  resetVersion: number;
 }
 
 const BoardStateContext = createContext<BoardStateValue | null>(null);
@@ -3573,7 +3582,10 @@ export function BoardStateProvider({ children }: { children: ReactNode }) {
   const boardRef = useRef(board);
   boardRef.current = board;
   const historyRef = useRef(new BoardCommandHistory<Board>());
-  const [, forceRender] = useState(0);
+  // Renamed from a discarded `[, forceRender]` to `[resetVersion, forceRender]` in Task 20's
+  // review, once there was an actual consumer (BoardEditorPanel) that needed to observe it -
+  // see the `resetVersion` field's doc comment above.
+  const [resetVersion, forceRender] = useState(0);
 
   const dispatch = useCallback((description: string, commandFn: (board: Board) => Board) => {
     const current = boardRef.current;
@@ -3614,6 +3626,7 @@ export function BoardStateProvider({ children }: { children: ReactNode }) {
     canUndo: historyRef.current.canUndo(),
     canRedo: historyRef.current.canRedo(),
     resetBoard,
+    resetVersion,
   };
 
   return <BoardStateContext.Provider value={value}>{children}</BoardStateContext.Provider>;
@@ -4540,6 +4553,12 @@ function CrossSectionRow({
  *    path that doesn't go through this file's onRemove) -> the `useEffect` below falls back
  *    to Outline whenever nearest-match itself comes up empty (only possible when zero real
  *    cross-sections remain at all).
+ *
+ * Task 20's review found a FOURTH, distinct way this whole panel's local view state (not just
+ * cross-section selection - also the tab (`viewMode`) and pan/zoom (`viewport`)) goes stale:
+ * `resetBoard` (New/Open, wired in Task 20) swaps in a wholly unrelated `Board`, not an
+ * incremental edit of the same one. This component watches `useBoardState()`'s `resetVersion`
+ * (see Task 12) for that specific case - see Task 20's diff for the added effect.
  */
 export function BoardEditorPanel() {
   const { board, dispatch } = useBoardState();
@@ -4835,6 +4854,7 @@ export function BoardSettingsDialog({ open, onClose }: BoardSettingsDialogProps)
   const [width, setWidth] = useState(getMaxWidth(board));
   const [thickness, setThickness] = useState(getMaxThickness(board));
   const wasOpen = useRef(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Only re-sync fields from `board` on the open transition (false -> true), not on every
   // `board` change while the dialog stays open. Re-syncing on every `board` change would
@@ -4852,6 +4872,15 @@ export function BoardSettingsDialog({ open, onClose }: BoardSettingsDialogProps)
     }
     wasOpen.current = open;
   }, [open, board]);
+
+  // Move focus into the dialog whenever it opens, so Escape works immediately instead of
+  // only once focus happens to land inside (e.g. after clicking a field). Also makes the
+  // backdrop below meaningfully modal: with focus trapped visually inside the dialog and
+  // the backdrop covering/blocking the rest of the app, there's no way to interact with the
+  // toolbar (New/Open/Save/Undo/Redo) while this is open.
+  useEffect(() => {
+    if (open) dialogRef.current?.focus();
+  }, [open]);
 
   if (!open) return null;
 
@@ -4872,47 +4901,77 @@ export function BoardSettingsDialog({ open, onClose }: BoardSettingsDialogProps)
   }
 
   return (
+    // Real modal behavior, not just ARIA attributes: the backdrop covers and functionally
+    // blocks the rest of the app (toolbar included) while open, and clicking it closes the
+    // dialog like Cancel. Without a real backdrop, the toolbar's New/Open stayed fully
+    // clickable behind an "open" dialog, which could silently apply this dialog's stale
+    // fields to a just-reset board (Task 20 caught this once the shell was actually wired
+    // together) - see BoardEditorPanel's resetVersion handling (Task 20) for the analogous
+    // stale-view problem on the 2D editor side.
+    //
+    // Close only when the click's target IS the backdrop itself, not via a
+    // stopPropagation()-guarded bubble from inside .dialog: a text-selection drag that
+    // starts inside an input and is released outside the dialog box (but still within the
+    // backdrop) makes the browser retarget the resulting click to the nearest common
+    // ancestor of mousedown/mouseup, which can be the backdrop - bypassing an inner
+    // stopPropagation() entirely and closing the dialog, discarding in-progress edits the
+    // user never intended to abandon. Target-equality is immune to that retargeting.
     <div
-      role="dialog"
-      aria-label="Board Settings"
-      aria-modal="true"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
+      className="dialogBackdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
       }}
     >
-      <label>
-        Name
-        <input value={name} onChange={(e) => setName(e.target.value)} />
-      </label>
-      <label>
-        Designer
-        <input value={designer} onChange={(e) => setDesigner(e.target.value)} />
-      </label>
-      <label>
-        Length (cm)
-        <input type="number" value={length} onChange={(e) => setLength(Number(e.target.value))} />
-      </label>
-      <label>
-        Width (cm)
-        <input type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))} />
-      </label>
-      <label>
-        Thickness (cm)
-        <input type="number" value={thickness} onChange={(e) => setThickness(Number(e.target.value))} />
-      </label>
-      {errorMessage != null && (
-        <p role="alert" style={{ color: 'red' }}>
-          {errorMessage}
-        </p>
-      )}
-      <button onClick={onSave} disabled={!isValid}>
-        Save
-      </button>
-      <button onClick={onClose}>Cancel</button>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-label="Board Settings"
+        aria-modal="true"
+        tabIndex={-1}
+        className="dialog"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onClose();
+        }}
+      >
+        <label>
+          Name
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label>
+          Designer
+          <input value={designer} onChange={(e) => setDesigner(e.target.value)} />
+        </label>
+        <label>
+          Length (cm)
+          <input type="number" value={length} onChange={(e) => setLength(Number(e.target.value))} />
+        </label>
+        <label>
+          Width (cm)
+          <input type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))} />
+        </label>
+        <label>
+          Thickness (cm)
+          <input type="number" value={thickness} onChange={(e) => setThickness(Number(e.target.value))} />
+        </label>
+        {errorMessage != null && (
+          <p role="alert" style={{ color: 'red' }}>
+            {errorMessage}
+          </p>
+        )}
+        <button onClick={onSave} disabled={!isValid}>
+          Save
+        </button>
+        <button onClick={onClose}>Cancel</button>
+      </div>
     </div>
   );
 }
 ```
+
+**Note (added by Task 20's review):** the `.dialogBackdrop`/`.dialog` CSS classes referenced above
+don't exist yet at this point in the plan's narrative — they're added to `App.css` in Task 20,
+since that's the first task where this dialog is actually mounted into a real page and the missing
+backdrop became a live bug (see Task 20's App.css step).
 
 - [ ] **Step 2: Verify** — `cd webapp && npm run build` → exits 0
 
@@ -5038,7 +5097,36 @@ Replace the contents of `webapp/src/App.css`:
   padding: 1rem;
   overflow: auto;
 }
+
+.dialogBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.dialog {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 320px;
+}
 ```
+
+**Step 2b (required, found by this task's own review): clean up `webapp/src/index.css`.** It still
+carries leftover Vite-starter-template styling on `#root` (`width: 1126px; max-width: 100%;
+margin: 0 auto; text-align: center; border-inline: 1px solid var(--border);`) that caps/centers the
+whole app shell instead of letting it fill the viewport — this only became visible once `App.tsx`
+was actually wired into a real page by this task. Remove those five properties from `#root`, keeping
+only `min-height: 100svh; display: flex; flex-direction: column; box-sizing: border-box;`. Also
+remove the now-dead `.counter` rule and the dark-mode `#social .button-icon` rule — `App.tsx`'s
+rewrite in Step 1 no longer renders any markup those selectors could match.
 
 - [ ] **Step 3: Run the full manual smoke test from "Verify" above**
 
@@ -5046,14 +5134,44 @@ Replace the contents of `webapp/src/App.css`:
 cd webapp && npm run dev
 ```
 
-Walk through all 7 scenarios listed in this task's Verify section. Fix any issue found before committing.
+Walk through all 7 scenarios listed in this task's Verify section. Fix any issue found before
+committing. **Note from actual execution of this task:** no browser-automation tooling
+(Playwright/Puppeteer) is available in this project — the 7 scenarios were verified by code-tracing
+the dispatch/command/state wiring for each, not by literally clicking through a browser. A human
+should still do one real pass before treating this task as fully closed, particularly around drag
+feel (scenario 1) and guide-point UX (scenario 3). This code-tracing pass is also what caught the
+Critical `BoardSettingsDialog` modal bug described below — it would not have been caught by build
+success or type-checking alone.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add webapp/src/App.tsx webapp/src/App.css
+git add webapp/src/App.tsx webapp/src/App.css webapp/src/index.css
 git commit -m "Wire app shell: toolbar, BoardEditorPanel + Viewer3D layout, Board Settings dialog"
 ```
+
+**Critical bug found and fixed during this task's review — read before treating Task 19's
+`BoardSettingsDialog` as final:** `BoardSettingsDialog` originally had `role="dialog"
+aria-modal="true"` but no actual backdrop or pointer-blocking — it was only mounted as a plain
+`<div>` in normal document flow. Once this task actually wired the toolbar (New/Open/Save/Undo/Redo)
+and the dialog into the same page for the first time, this became a real, silent data-corruption
+path: opening Board Settings, then clicking New or Open in the still-fully-clickable toolbar behind
+it, then clicking the dialog's own (now-stale) Save button would apply the OLD board's field values
+to the NEWLY reset board with no error or warning. This was invisible when `BoardSettingsDialog` was
+reviewed in isolation in Task 19, since New/Open didn't exist yet to trigger it — exactly the kind
+of gap that only surfaces once components are wired together. Task 19's reference code earlier in
+this document has already been updated in place to reflect the fix (a real `position: fixed`
+backdrop that blocks/closes on click, using target-equality rather than `stopPropagation()` to avoid
+a text-selection-drag misfire, plus moving focus into the dialog on open so Escape works
+immediately) — the `.dialogBackdrop`/`.dialog` CSS above is that fix's other half.
+
+**Also added during this task's review:** `BoardStateContext.tsx` (Task 12) now exposes
+`resetVersion: number`, incremented only inside `resetBoard` (New/Open), never on ordinary
+`dispatch`/`undo`/`redo`. `BoardEditorPanel` (Task 17) watches it via a `useRef`-guarded `useEffect`
+to reset its local `viewMode`/`viewport` back to a fitted Outline view specifically when a full
+reset happens — otherwise the 2D editor would stay framed on the shape of whatever board was just
+discarded (harmless for New, since the default board's dimensions are similar, but visibly
+off-center/mis-scaled for Open, which can load an arbitrarily different board).
 
 ---
 
