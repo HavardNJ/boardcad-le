@@ -7,13 +7,10 @@ import type { Board } from '../board/types';
 import {
   cloneBoard,
   getLength,
-  getThicknessAtPos,
-  getWidthAtPos,
   getInterpolatedCrossSection,
   sortCrossSections,
   scaleBoard,
 } from '../board/board';
-import { scaleCrossSection } from '../board/crossSection';
 import { resolveSpline, notifyChanged, type SplineRef } from './splineRef';
 
 /** Port of the continuity-mirror branch of BrdEditCommand.moveControlPoints: mutates `which`'s point to (x,y); if the knot is continuous, mirrors the *direction* of the opposite tangent while preserving its own length. */
@@ -145,6 +142,12 @@ export function fitCurveFromGuidePointsCommand(board: Board, ref: SplineRef, gui
     curve.getEndKnot().continuous = false;
     curve.getEndKnot().setControlPointLocation(p3.x, p3.y);
     curve.getEndKnot().setTangentToPrev(p2.x, p2.y);
+    // isCrossSection's getMinX/MaxX/MinY/MaxY calls above already forced this curve's
+    // coefficient cache to compute (and freeze) against the PRE-fit knot positions;
+    // without this, the curve would keep evaluating its old shape until some unrelated
+    // later edit happened to call setDirty() on it (same bug class fixed for
+    // deleteControlPointCommand's convergence loop above).
+    curve.setDirty();
   }
 
   notifyChanged(next, ref);
@@ -154,11 +157,12 @@ export function fitCurveFromGuidePointsCommand(board: Board, ref: SplineRef, gui
 /** Port of BrdAddCrossSectionCommand: interpolates a new cross-section at `pos` and inserts it among the real (non-boundary) cross-sections. */
 export function addCrossSectionCommand(board: Board, pos: number): Board {
   const next = cloneBoard(board);
+  // getInterpolatedCrossSection already sets `.position` and scales to the board's
+  // thickness/width at `pos` (with a 0.5 floor) - redoing that here would call
+  // scaleCrossSection with unclamped values, silently discarding that floor.
   const interpolated = getInterpolatedCrossSection(next, pos);
   if (interpolated == null) return next;
 
-  interpolated.position = pos;
-  scaleCrossSection(interpolated, getThicknessAtPos(next, pos), getWidthAtPos(next, pos));
   next.crossSections.push(interpolated);
   sortCrossSections(next);
   return next;

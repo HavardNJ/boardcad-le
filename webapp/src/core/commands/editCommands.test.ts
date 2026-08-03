@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { newBoard, getLength, getMaxWidth, getMaxThickness } from '../board/board';
 import { BezierKnot } from '../bezier/bezierKnot';
+import { BezierCurve } from '../bezier/bezierCurve';
 import { BezierSpline } from '../bezier/bezierSpline';
 import type { Board } from '../board/types';
 import {
@@ -10,6 +11,7 @@ import {
   fitCurveFromGuidePointsCommand,
   addCrossSectionCommand,
   removeCrossSectionCommand,
+  moveCrossSectionCommand,
   scaleBoardCommand,
 } from './editCommands';
 
@@ -112,6 +114,29 @@ describe('fitCurveFromGuidePointsCommand', () => {
     const result = fitCurveFromGuidePointsCommand(board, 'outline', guidePoints, false);
     expect(result.outline.getValueAt(10)).toBeGreaterThan(2);
   });
+
+  it('isCrossSection=true returns a curve whose cached evaluation reflects the fitted shape, not the pre-fit shape', () => {
+    // Regression test: the isCrossSection branch calls curve.getMinX/MaxX/MinY/MaxY to
+    // compute the guide-point filter range BEFORE the fit mutates the curve's knots.
+    // Those calls force-compute (and freeze) the curve's cached coefficients against the
+    // PRE-fit knot positions; without an explicit setDirty() after the mutation, the
+    // curve keeps evaluating its old shape. Guide points must stay inside the original
+    // curve's small y-bounds (~±0.29 here) or the range filter skips the curve entirely,
+    // which would make this test pass trivially without exercising the bug.
+    const board = newBoard();
+    board.outline = new BezierSpline();
+    board.outline.append(new BezierKnot(0, 0, -2, 0, 2, 1));
+    board.outline.append(new BezierKnot(10, 0, 8, -1, 12, 0));
+    const guidePoints = Array.from({ length: 10 }, (_, i) => ({ x: (i / 9) * 10, y: 0.2 }));
+
+    const result = fitCurveFromGuidePointsCommand(board, 'outline', guidePoints, true);
+
+    const curve = result.outline.getCurve(0);
+    const cachedY = curve.getYValue(0.5);
+    const freshCurve = new BezierCurve(curve.getStartKnot(), curve.getEndKnot());
+    const freshY = freshCurve.getYValue(0.5);
+    expect(Math.abs(cachedY - freshY)).toBeLessThan(0.001);
+  });
 });
 
 describe('cross-section commands', () => {
@@ -126,6 +151,23 @@ describe('cross-section commands', () => {
     const board = newBoard();
     const result = removeCrossSectionCommand(board, 0);
     expect(result.crossSections.length).toBe(board.crossSections.length);
+  });
+
+  it('moveCrossSectionCommand refuses to move boundary cross-sections', () => {
+    const board = newBoard();
+    const result = moveCrossSectionCommand(board, 0, getLength(board) / 2);
+    expect(result.crossSections[0].position).toBe(board.crossSections[0].position);
+  });
+
+  it('moveCrossSectionCommand moves a real cross-section to the requested (clamped) position', () => {
+    const board = newBoard();
+    const withReal = addCrossSectionCommand(board, getLength(board) / 2);
+    const realIndex = withReal.crossSections.findIndex(
+      (cs) => cs !== withReal.crossSections[0] && cs !== withReal.crossSections[withReal.crossSections.length - 1],
+    );
+    const newPos = getLength(withReal) * 0.75;
+    const result = moveCrossSectionCommand(withReal, realIndex, newPos);
+    expect(result.crossSections[realIndex].position).toBeCloseTo(newPos, 5);
   });
 });
 
