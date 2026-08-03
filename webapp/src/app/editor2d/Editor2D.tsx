@@ -3,7 +3,13 @@ import type { Point2D } from '../../core/bezier/point';
 import { BezierSpline } from '../../core/bezier/bezierSpline';
 import { END_POINT } from '../../core/bezier/bezierKnot';
 import * as vec from '../../core/bezier/vecMath';
-import { moveControlPointCommand, moveKnotTangent, addControlPointCommand, deleteControlPointCommand } from '../../core/commands/editCommands';
+import {
+  moveControlPointCommand,
+  moveKnotTangent,
+  addControlPointCommand,
+  deleteControlPointCommand,
+  fitCurveFromGuidePointsCommand,
+} from '../../core/commands/editCommands';
 import type { SplineRef } from '../../core/commands/splineRef';
 import { useBoardState } from '../state/BoardStateContext';
 import { SplineCanvas, type KnotSelection } from './SplineCanvas';
@@ -13,6 +19,7 @@ export interface Editor2DProps {
   spline: BezierSpline;
   splineRef: SplineRef;
   viewport: Viewport;
+  isCrossSection: boolean;
 }
 
 const HIT_RADIUS_PX = 8;
@@ -42,10 +49,12 @@ function clonePreviewSpline(spline: BezierSpline): BezierSpline {
   return preview;
 }
 
-export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
+export function Editor2D({ spline, splineRef, viewport, isCrossSection }: Editor2DProps) {
   const { dispatch } = useBoardState();
   const [selection, setSelection] = useState<KnotSelection | null>(null);
   const [previewSpline, setPreviewSpline] = useState<BezierSpline | null>(null);
+  const [mode, setMode] = useState<'edit' | 'guide'>('edit');
+  const [guidePoints, setGuidePoints] = useState<Point2D[]>([]);
   const dragRef = useRef<KnotSelection | null>(null);
 
   function hitTest(screenPos: Point2D): KnotSelection | null {
@@ -68,7 +77,13 @@ export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
   }
 
   function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
-    const hit = hitTest(eventToScreenPos(event));
+    const screenPos = eventToScreenPos(event);
+    if (mode === 'guide') {
+      setGuidePoints((points) => [...points, screenToBoard(viewport, screenPos)]);
+      return;
+    }
+
+    const hit = hitTest(screenPos);
     setSelection(hit);
     if (hit == null) return;
 
@@ -129,12 +144,31 @@ export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
     }
   }
 
+  function fitCurve() {
+    dispatch('Fit curve', (board) => fitCurveFromGuidePointsCommand(board, splineRef, guidePoints, isCrossSection));
+    setGuidePoints([]);
+  }
+
   return (
     <div tabIndex={0} onKeyDown={onKeyDown}>
+      <div>
+        <button onClick={() => setMode(mode === 'edit' ? 'guide' : 'edit')}>{mode === 'edit' ? 'Add Guide Points' : 'Editing Points'}</button>
+        {mode === 'guide' && (
+          <>
+            <button onClick={fitCurve} disabled={guidePoints.length === 0}>
+              Fit Curve
+            </button>
+            <button onClick={() => setGuidePoints([])} disabled={guidePoints.length === 0}>
+              Clear Guide Points
+            </button>
+          </>
+        )}
+      </div>
       <SplineCanvas
         spline={previewSpline ?? spline}
         viewport={viewport}
         selection={selection}
+        guidePoints={guidePoints}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

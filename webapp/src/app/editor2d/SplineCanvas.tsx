@@ -13,6 +13,7 @@ export interface SplineCanvasProps {
   spline: BezierSpline;
   viewport: Viewport;
   selection: KnotSelection | null;
+  guidePoints?: Point2D[];
   onPointerDown?: (event: React.PointerEvent<HTMLCanvasElement>) => void;
   onPointerMove?: (event: React.PointerEvent<HTMLCanvasElement>) => void;
   onPointerUp?: (event: React.PointerEvent<HTMLCanvasElement>) => void;
@@ -33,7 +34,7 @@ function drawHandle(ctx: CanvasRenderingContext2D, p: Point2D, selected: boolean
 }
 
 export function SplineCanvas(props: SplineCanvasProps) {
-  const { spline, viewport, selection, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onDoubleClick } = props;
+  const { spline, viewport, selection, guidePoints, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onDoubleClick } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useLayoutEffect(() => {
@@ -76,7 +77,17 @@ export function SplineCanvas(props: SplineCanvasProps) {
       drawHandle(ctx, next, isSelectedKnot && selection?.which === NEXT_TANGENT);
       drawEndpoint(ctx, endpoint, isSelectedKnot && selection?.which === END_POINT);
     }
-  }, [spline, viewport, selection]);
+
+    if (guidePoints) {
+      ctx.fillStyle = '#16a34a';
+      for (const gp of guidePoints) {
+        const p = boardToScreen(viewport, gp);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }, [spline, viewport, selection, guidePoints]);
 
   return (
     <canvas
