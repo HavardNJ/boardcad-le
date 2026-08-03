@@ -3455,29 +3455,46 @@ const BoardStateContext = createContext<BoardStateValue | null>(null);
 
 export function BoardStateProvider({ children }: { children: ReactNode }) {
   const [board, setBoard] = useState<Board>(() => newBoard());
+  // `boardRef` mirrors `board` so dispatch/undo/redo/resetBoard can read the current value
+  // synchronously. This can't be a functional `setBoard` updater: React 18 StrictMode
+  // double-invokes updater functions in dev, and this updater has a side effect
+  // (historyRef.current.execute) that must run exactly once per action. The ref is also
+  // written synchronously at each call site below (not just during render) because React 18
+  // batches multiple setState calls within one synchronous handler without re-rendering in
+  // between - relying on the render-body assignment alone would leave the ref stale for a
+  // second call in the same batch (e.g. dispatch() called twice, or dispatch() then undo()).
+  const boardRef = useRef(board);
+  boardRef.current = board;
   const historyRef = useRef(new BoardCommandHistory<Board>());
   const [, forceRender] = useState(0);
 
   const dispatch = useCallback((description: string, commandFn: (board: Board) => Board) => {
-    setBoard((current) => {
-      const after = commandFn(current);
-      historyRef.current.execute(description, current, after);
-      return after;
-    });
+    const current = boardRef.current;
+    const after = commandFn(current);
+    historyRef.current.execute(description, current, after);
+    boardRef.current = after;
+    setBoard(after);
   }, []);
 
   const undo = useCallback(() => {
     const previous = historyRef.current.undo();
-    if (previous != null) setBoard(previous);
+    if (previous != null) {
+      boardRef.current = previous;
+      setBoard(previous);
+    }
   }, []);
 
   const redo = useCallback(() => {
     const next = historyRef.current.redo();
-    if (next != null) setBoard(next);
+    if (next != null) {
+      boardRef.current = next;
+      setBoard(next);
+    }
   }, []);
 
   const resetBoard = useCallback((newB: Board) => {
     historyRef.current.clear();
+    boardRef.current = newB;
     setBoard(newB);
     forceRender((n) => n + 1);
   }, []);
@@ -3606,7 +3623,15 @@ export function loadAutosavedBoard(): Board | null {
 }
 
 export function saveAutosavedBoard(board: Board): void {
-  localStorage.setItem(STORAGE_KEY, serializeBoard(board));
+  // localStorage.setItem can throw (quota exceeded, private-browsing restrictions in some
+  // browsers). Swallow and warn rather than throw uncaught, especially since this also runs
+  // synchronously from a `beforeunload` handler (see Step 3) where an uncaught throw would
+  // be silently lost anyway.
+  try {
+    localStorage.setItem(STORAGE_KEY, serializeBoard(board));
+  } catch (err) {
+    console.warn('Failed to autosave board:', err);
+  }
 }
 ```
 
@@ -3655,6 +3680,16 @@ const [board, setBoard] = useState<Board>(() => loadAutosavedBoard() ?? newBoard
 useEffect(() => {
   const timeout = setTimeout(() => saveAutosavedBoard(board), 500);
   return () => clearTimeout(timeout);
+}, [board]);
+
+// The debounce above alone loses the last edit if the tab closes/reloads within the 500ms
+// window (browsers don't run pending timers on unload). Flush synchronously on unload too:
+useEffect(() => {
+  function handleBeforeUnload() {
+    saveAutosavedBoard(board);
+  }
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  return () => window.removeEventListener('beforeunload', handleBeforeUnload);
 }, [board]);
 ```
 
