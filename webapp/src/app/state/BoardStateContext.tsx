@@ -26,21 +26,29 @@ export function BoardStateProvider({ children }: { children: ReactNode }) {
     const current = boardRef.current;
     const after = commandFn(current);
     historyRef.current.execute(description, current, after);
+    boardRef.current = after;
     setBoard(after);
   }, []);
 
   const undo = useCallback(() => {
     const previous = historyRef.current.undo();
-    if (previous != null) setBoard(previous);
+    if (previous != null) {
+      boardRef.current = previous;
+      setBoard(previous);
+    }
   }, []);
 
   const redo = useCallback(() => {
     const next = historyRef.current.redo();
-    if (next != null) setBoard(next);
+    if (next != null) {
+      boardRef.current = next;
+      setBoard(next);
+    }
   }, []);
 
   const resetBoard = useCallback((newB: Board) => {
     historyRef.current.clear();
+    boardRef.current = newB;
     setBoard(newB);
     forceRender((n) => n + 1);
   }, []);
