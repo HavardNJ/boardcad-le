@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getLength, getMaxWidth, getMaxThickness } from '../../core/board/board';
 import { scaleBoardCommand, updateMetadataCommand } from '../../core/commands/editCommands';
 import { useBoardState } from '../state/BoardStateContext';
@@ -24,16 +24,23 @@ export function BoardSettingsDialog({ open, onClose }: BoardSettingsDialogProps)
   const [length, setLength] = useState(getLength(board));
   const [width, setWidth] = useState(getMaxWidth(board));
   const [thickness, setThickness] = useState(getMaxThickness(board));
-  const [error, setError] = useState<string | null>(null);
+  const wasOpen = useRef(false);
 
+  // Only re-sync fields from `board` on the open transition (false -> true), not on every
+  // `board` change while the dialog stays open. Re-syncing on every `board` change would
+  // silently clobber an in-progress, not-yet-saved edit if the board changes for a reason
+  // unrelated to this dialog (e.g. an undo/redo fired while focus is on the Save/Cancel
+  // buttons rather than inside an input - useUndoRedoShortcuts' isEditableTarget guard only
+  // blocks the shortcut while focus is currently inside an editable element).
   useEffect(() => {
-    if (!open) return;
-    setName(board.name);
-    setDesigner(board.designer);
-    setLength(getLength(board));
-    setWidth(getMaxWidth(board));
-    setThickness(getMaxThickness(board));
-    setError(null);
+    if (open && !wasOpen.current) {
+      setName(board.name);
+      setDesigner(board.designer);
+      setLength(getLength(board));
+      setWidth(getMaxWidth(board));
+      setThickness(getMaxThickness(board));
+    }
+    wasOpen.current = open;
   }, [open, board]);
 
   if (!open) return null;
@@ -46,17 +53,23 @@ export function BoardSettingsDialog({ open, onClose }: BoardSettingsDialogProps)
     Number.isFinite(thickness) &&
     thickness > MIN_DIMENSION_CM;
 
+  const errorMessage = isValid ? null : `Length, width, and thickness must all be greater than ${MIN_DIMENSION_CM} cm.`;
+
   function onSave() {
-    if (!isValid) {
-      setError(`Length, width, and thickness must all be greater than ${MIN_DIMENSION_CM} cm.`);
-      return;
-    }
+    if (!isValid) return; // unreachable via the disabled button, but a harmless guard
     dispatch('Update board settings', (b) => updateMetadataCommand(scaleBoardCommand(b, length, width, thickness), { name, designer }));
     onClose();
   }
 
   return (
-    <div role="dialog" aria-label="Board Settings">
+    <div
+      role="dialog"
+      aria-label="Board Settings"
+      aria-modal="true"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
       <label>
         Name
         <input value={name} onChange={(e) => setName(e.target.value)} />
@@ -77,9 +90,9 @@ export function BoardSettingsDialog({ open, onClose }: BoardSettingsDialogProps)
         Thickness (cm)
         <input type="number" value={thickness} onChange={(e) => setThickness(Number(e.target.value))} />
       </label>
-      {error != null && (
+      {errorMessage != null && (
         <p role="alert" style={{ color: 'red' }}>
-          {error}
+          {errorMessage}
         </p>
       )}
       <button onClick={onSave} disabled={!isValid}>
