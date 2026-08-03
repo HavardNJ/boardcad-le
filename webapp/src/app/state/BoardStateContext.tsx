@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Board } from '../../core/board/types';
 import { newBoard } from '../../core/board/board';
 import { BoardCommandHistory } from '../../core/commands/commandHistory';
+import { loadAutosavedBoard, saveAutosavedBoard } from './autosave';
 
 interface BoardStateValue {
   board: Board;
@@ -16,11 +17,16 @@ interface BoardStateValue {
 const BoardStateContext = createContext<BoardStateValue | null>(null);
 
 export function BoardStateProvider({ children }: { children: ReactNode }) {
-  const [board, setBoard] = useState<Board>(() => newBoard());
+  const [board, setBoard] = useState<Board>(() => loadAutosavedBoard() ?? newBoard());
   const boardRef = useRef(board);
   boardRef.current = board;
   const historyRef = useRef(new BoardCommandHistory<Board>());
   const [, forceRender] = useState(0);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => saveAutosavedBoard(board), 500);
+    return () => clearTimeout(timeout);
+  }, [board]);
 
   const dispatch = useCallback((description: string, commandFn: (board: Board) => Board) => {
     const current = boardRef.current;
