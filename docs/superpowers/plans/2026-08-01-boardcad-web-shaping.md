@@ -3115,6 +3115,89 @@ export function fitCurveFromGuidePointsCommand(board: Board, ref: SplineRef, gui
   return next;
 }
 
+/**
+ * Small enough to be invisible in normal use (cm), large enough to keep positions safely
+ * distinguishable by both floating-point equality and interpolation math.
+ */
+export const CROSS_SECTION_MIN_SPACING = 0.1;
+
+/**
+ * Finds the position closest to `desiredPosition` that stays at least
+ * `CROSS_SECTION_MIN_SPACING` away from EVERY other cross-section in `board.crossSections`
+ * - boundaries included; `excludeIndex` is the only entry skipped (used when moving an
+ * existing cross-section so it isn't compared against itself).
+ *
+ * Two cross-sections at (near-)identical positions are ill-defined for more than just the
+ * app layer's position-based selection tracking (see app/editor2d/BoardEditorPanel): this
+ * board's own `getInterpolatedCrossSection` divides by `secondPos - firstPos`, so a
+ * near-zero gap between adjacent cross-sections blows up that division. This is a genuine
+ * core-model invariant, not a UI-only concern - hence living here rather than in the app
+ * layer, and applying to BOTH `addCrossSectionCommand` (which can otherwise duplicate the
+ * position of an already-added cross-section, e.g. two consecutive "Add Cross-Section"
+ * clicks at the board's midpoint) and `moveCrossSectionCommand` (which can otherwise move a
+ * cross-section directly onto another's exact position, INCLUDING a boundary's - a naive
+ * "always nudge forward, clamp at the end" version of this function is provably unsound
+ * near the tail: nudging away from a near-tail collision walks position OUTSIDE
+ * [0, getLength(board)], and clamping it back in afterward undoes the nudge, landing right
+ * back in the collision it was trying to escape).
+ *
+ * Both boundary cross-sections (index 0 at position 0, and the last at position
+ * `getLength(board)`) are ordinary entries in `board.crossSections`, so they take part in
+ * this same "forbidden points" list rather than needing separate boundary-clamping logic -
+ * this relies on the codebase-wide invariant that boundary positions are always exactly 0
+ * and `getLength(board)` (enforced by `moveCrossSectionCommand`/`removeCrossSectionCommand`
+ * both refusing to touch index 0 or the last index, and by `scaleBoard` explicitly
+ * re-pinning the last boundary to the new length on every scale).
+ *
+ * Implementation: sorts the forbidden positions, walks every gap between consecutive ones
+ * (there are no gaps to consider before the first or after the last, since those ARE the
+ * board's own boundaries), and for each gap wide enough to hold a point at least
+ * `CROSS_SECTION_MIN_SPACING` from both of its edges, computes the closest point within that
+ * gap's safe sub-range to `desiredPosition`. Returns whichever candidate is closest to
+ * `desiredPosition` overall. This is a single deterministic pass over a fixed-size list -
+ * no iterative nudge-and-recheck loop - so termination is structural, not an empirically
+ * observed bound on retry count.
+ *
+ * Degenerate case: if the board is packed so densely that NO gap anywhere has room for a
+ * fully-spaced point (every gap narrower than `2 * CROSS_SECTION_MIN_SPACING`), there is no
+ * position that can satisfy the invariant against every neighbor simultaneously - a genuine
+ * "too dense to place" scenario a real product would need to refuse outright rather than
+ * silently nudge through. Out of scope here; this falls back to clamping `desiredPosition`
+ * into `[CROSS_SECTION_MIN_SPACING, length - CROSS_SECTION_MIN_SPACING]`, which keeps it
+ * inside the board's own bounds even though it may still collide with some interior
+ * cross-section in this pathological case.
+ */
+function resolveUniqueCrossSectionPosition(board: Board, desiredPosition: number, excludeIndex: number | null): number {
+  const length = getLength(board);
+  const forbidden = board.crossSections
+    .filter((_, i) => i !== excludeIndex)
+    .map((cs) => cs.position)
+    .sort((a, b) => a - b);
+
+  let best: number | null = null;
+  let bestDist = Infinity;
+
+  for (let i = 0; i < forbidden.length - 1; i++) {
+    const safeStart = forbidden[i] + CROSS_SECTION_MIN_SPACING;
+    const safeEnd = forbidden[i + 1] - CROSS_SECTION_MIN_SPACING;
+    if (safeStart > safeEnd) continue; // gap too narrow to hold a fully-spaced point
+
+    const candidate = Math.min(Math.max(desiredPosition, safeStart), safeEnd);
+    const dist = Math.abs(candidate - desiredPosition);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = candidate;
+    }
+  }
+
+  if (best != null) return best;
+
+  // Degenerate fallback - see doc comment above. Also covers forbidden.length < 2, which
+  // shouldn't happen given the boundary invariant this function relies on, but a board with
+  // fewer than 2 remaining reference points has no gaps to walk regardless of why.
+  return Math.min(Math.max(desiredPosition, CROSS_SECTION_MIN_SPACING), length - CROSS_SECTION_MIN_SPACING);
+}
+
 /** Port of BrdAddCrossSectionCommand: interpolates a new cross-section at `pos` and inserts it among the real (non-boundary) cross-sections. */
 export function addCrossSectionCommand(board: Board, pos: number): Board {
   const next = cloneBoard(board);
@@ -3124,6 +3207,10 @@ export function addCrossSectionCommand(board: Board, pos: number): Board {
   const interpolated = getInterpolatedCrossSection(next, pos);
   if (interpolated == null) return next;
 
+  // Nudge before pushing: resolveUniqueCrossSectionPosition compares against
+  // next.crossSections as it currently stands (interpolated isn't in there yet), so no
+  // excludeIndex is needed here.
+  interpolated.position = resolveUniqueCrossSectionPosition(next, interpolated.position, null);
   next.crossSections.push(interpolated);
   sortCrossSections(next);
   return next;
@@ -3137,13 +3224,33 @@ export function removeCrossSectionCommand(board: Board, index: number): Board {
   return next;
 }
 
-export function moveCrossSectionCommand(board: Board, index: number, newPosition: number): Board {
+/**
+ * Returns the actual resulting position alongside the board (not just the board) because
+ * the caller can't reliably recover it afterward: `resolveUniqueCrossSectionPosition` may
+ * have nudged `newPosition` away from a collision, and `sortCrossSections` may then have
+ * moved the entry to a different array index - so `result.crossSections[index]` after the
+ * fact is not guaranteed to still be the cross-section that was just moved. Returning the
+ * exact value computed here (before any of that reshuffling) sidesteps needing to re-find
+ * it by any kind of nearest-position search, which is the same fragile-by-construction
+ * pattern this file's `resolveUniqueCrossSectionPosition` and the app layer's
+ * `findActiveCrossSectionIndex` exist to work around, not to lean on further. Mirrors
+ * `addControlPointCommand`'s existing `{ board, knotIndex }` shape for the same reason.
+ */
+export function moveCrossSectionCommand(board: Board, index: number, newPosition: number): { board: Board; position: number } {
   const next = cloneBoard(board);
-  if (index <= 0 || index >= next.crossSections.length - 1) return next;
-  const clamped = Math.min(Math.max(newPosition, 0.01), getLength(next) - 0.01);
-  next.crossSections[index].position = clamped;
+  if (index <= 0 || index >= next.crossSections.length - 1) {
+    return { board: next, position: next.crossSections[index]?.position ?? newPosition };
+  }
+  // resolveUniqueCrossSectionPosition handles both range-clamping and boundary/collision
+  // avoidance as one coherent pass - see its doc comment for why doing the range clamp here
+  // first (as an earlier version of this function did, with a plain [0.01, length-0.01]
+  // range that didn't account for CROSS_SECTION_MIN_SPACING) was the proximate cause of a
+  // near-boundary position getting nudged out of range and then clamped right back into a
+  // boundary collision.
+  const resolved = resolveUniqueCrossSectionPosition(next, newPosition, index);
+  next.crossSections[index].position = resolved;
   sortCrossSections(next);
-  return next;
+  return { board: next, position: resolved };
 }
 
 export function updateMetadataCommand(
@@ -4286,8 +4393,15 @@ git commit -m "Add guide points and Bezier curve fitting UI to app/editor2d"
 
 Create `webapp/src/app/editor2d/BoardEditorPanel.tsx`:
 
+**Note: cross-section selection is tracked by remembered POSITION, not array index** — this
+underwent several fix rounds after review found that an index-based `ViewMode` (the initial,
+simpler design) breaks whenever an unrelated `removeCrossSectionCommand`/`moveCrossSectionCommand`
+shifts what's at a given array index. The final design below re-resolves the tracked
+cross-section to its current array index every render via nearest-position match. See the
+inline comments for the full reasoning — this is the single trickiest part of this task.
+
 ```tsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Board } from '../../core/board/types';
 import { BezierSpline } from '../../core/bezier/bezierSpline';
 import { getLength } from '../../core/board/board';
@@ -4297,44 +4411,164 @@ import { useBoardState } from '../state/BoardStateContext';
 import { Editor2D } from './Editor2D';
 import { fitViewport, type Viewport } from './viewport';
 
-type ViewMode = 'outline' | 'deck' | 'bottom' | { crossSection: number };
+type ViewMode = 'outline' | 'deck' | 'bottom' | { crossSectionPosition: number };
 
 const CANVAS_WIDTH = 640;
 const CANVAS_HEIGHT = 480;
 
-function resolveViewSpline(board: Board, mode: ViewMode): BezierSpline {
+/** Finds the real (non-boundary) cross-section whose position is closest to `position`.
+ *  Returns null if there are no real cross-sections. Re-run on every render rather than
+ *  cached, so it always reflects the current board - array index alone isn't a stable
+ *  identity across dispatches (removeCrossSectionCommand splices, moveCrossSectionCommand
+ *  re-sorts), but position survives both as long as the cross-section itself still exists. */
+function findActiveCrossSectionIndex(board: Board, viewMode: ViewMode): number | null {
+  if (typeof viewMode !== 'object') return null;
+  let bestIndex: number | null = null;
+  let bestDist = Infinity;
+  for (let i = 1; i < board.crossSections.length - 1; i++) {
+    const dist = Math.abs(board.crossSections[i].position - viewMode.crossSectionPosition);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+function resolveViewSpline(board: Board, mode: ViewMode, activeCrossSectionIndex: number | null): BezierSpline {
   if (mode === 'outline') return board.outline;
   if (mode === 'deck') return board.deck;
   if (mode === 'bottom') return board.bottom;
-  return board.crossSections[mode.crossSection].spline;
+  return activeCrossSectionIndex != null ? board.crossSections[activeCrossSectionIndex].spline : board.outline;
 }
 
-function toSplineRef(mode: ViewMode): SplineRef {
+function toSplineRef(mode: ViewMode, activeCrossSectionIndex: number | null): SplineRef {
   if (mode === 'outline' || mode === 'deck' || mode === 'bottom') return mode;
-  return { crossSection: mode.crossSection };
+  // Must agree with resolveViewSpline's null-fallback (also 'outline') - otherwise, for the
+  // one render where viewMode is still the cross-section variant but the tracked
+  // cross-section is gone (reachable via undo/redo/resetBoard removing it out from under
+  // the panel, not just this file's own onRemove guard), Editor2D would render the
+  // outline's shape while dispatching edits against `{crossSection: 0}` - a boundary
+  // spline's knot indices - a mismatched pair, not just a display glitch.
+  return activeCrossSectionIndex != null ? { crossSection: activeCrossSectionIndex } : 'outline';
 }
 
 function sameMode(a: ViewMode, b: ViewMode): boolean {
   if (typeof a === 'object' || typeof b === 'object') {
-    return typeof a === 'object' && typeof b === 'object' && a.crossSection === b.crossSection;
+    return typeof a === 'object' && typeof b === 'object' && a.crossSectionPosition === b.crossSectionPosition;
   }
   return a === b;
 }
 
+/**
+ * Position input for a single cross-section row. Kept as local, uncontrolled-ish text
+ * state and only dispatches `moveCrossSectionCommand` on blur/Enter (not per keystroke).
+ *
+ * Why: `moveCrossSectionCommand` calls `sortCrossSections` internally, so dispatching on
+ * every keystroke could reorder `board.crossSections` mid-typing - and since the parent
+ * list's `<li>` is keyed by array index, a reorder while this input is still focused would
+ * make React re-attach the wrong logical row's state to that index, which can also drop
+ * focus. Committing only on blur/Enter means the array can only reorder after the user has
+ * already left the field, matching Task 15's "edit locally, commit once" convention (e.g.
+ * Editor2D's own drag-then-dispatch-on-pointer-up), and avoids spamming one undo-history
+ * entry per keystroke for what is logically a single edit.
+ */
+function CrossSectionRow({
+  index,
+  position,
+  active,
+  onSelect,
+  onCommitPosition,
+  onRemove,
+}: {
+  index: number;
+  position: number;
+  active: boolean;
+  onSelect: () => void;
+  onCommitPosition: (index: number, value: number) => void;
+  onRemove: () => void;
+}) {
+  const [text, setText] = useState(() => position.toFixed(1));
+
+  useEffect(() => {
+    setText(position.toFixed(1));
+  }, [position]);
+
+  function commit() {
+    const value = Number(text);
+    if (text.trim() !== '' && Number.isFinite(value) && value !== position) {
+      onCommitPosition(index, value);
+    } else {
+      setText(position.toFixed(1));
+    }
+  }
+
+  return (
+    <li>
+      <button style={{ fontWeight: active ? 'bold' : 'normal' }} onClick={onSelect}>
+        {position.toFixed(1)} cm
+      </button>
+      <input
+        type="number"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.currentTarget.blur();
+          }
+        }}
+      />
+      <button onClick={onRemove}>Remove</button>
+    </li>
+  );
+}
+
+/**
+ * Cross-section selection is tracked by position (`viewMode`'s `crossSectionPosition`), not
+ * array index, re-resolved to the current array index every render via
+ * `findActiveCrossSectionIndex`'s nearest-position match - see that function's doc comment
+ * for why index alone isn't a stable identity across dispatches. That remembered position
+ * can go stale in three distinct ways, each handled by its own mechanism at its own call
+ * site rather than one central place, since each is triggered by a different event:
+ *  - The active row edits its OWN position -> `onCommitPosition` updates `viewMode` to the
+ *    actual committed position (read back from the command result, not the raw typed value).
+ *  - The active row is removed via this panel's own Remove button -> `onRemove` explicitly
+ *    falls back to the Outline tab (nearest-match alone wouldn't reliably detect this, since
+ *    some other remaining row is often still "nearest" to the stale anchor).
+ *  - The active row disappears some other way (undo/redo, resetBoard, or any future removal
+ *    path that doesn't go through this file's onRemove) -> the `useEffect` below falls back
+ *    to Outline whenever nearest-match itself comes up empty (only possible when zero real
+ *    cross-sections remain at all).
+ */
 export function BoardEditorPanel() {
   const { board, dispatch } = useBoardState();
   const [viewMode, setViewMode] = useState<ViewMode>('outline');
   const [viewport, setViewport] = useState<Viewport>(() => fitViewport(board.outline, CANVAS_WIDTH, CANVAS_HEIGHT, 30, false));
 
+  const activeCrossSectionIndex = findActiveCrossSectionIndex(board, viewMode);
+
   function selectView(mode: ViewMode) {
     setViewMode(mode);
-    const spline = resolveViewSpline(board, mode);
+    const resolvedIndex = findActiveCrossSectionIndex(board, mode);
+    const spline = resolveViewSpline(board, mode, resolvedIndex);
     const flipY = mode !== 'outline';
     setViewport(fitViewport(spline, CANVAS_WIDTH, CANVAS_HEIGHT, 30, flipY));
   }
 
-  const activeSpline = resolveViewSpline(board, viewMode);
-  const activeCrossSectionIndex = typeof viewMode === 'object' ? viewMode.crossSection : null;
+  // If the cross-section the user was editing gets removed out from under them (not just
+  // reordered - findActiveCrossSectionIndex only returns null when no real cross-section
+  // remains close enough to have been "it"), fall back to the Outline tab rather than
+  // silently rendering board.outline while isCrossSection stays true and no tab is
+  // highlighted as active.
+  useEffect(() => {
+    if (typeof viewMode === 'object' && activeCrossSectionIndex == null) {
+      selectView('outline');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCrossSectionIndex, viewMode]);
+
+  const activeSpline = resolveViewSpline(board, viewMode, activeCrossSectionIndex);
   const realCrossSections = board.crossSections.slice(1, -1);
 
   return (
@@ -4353,24 +4587,52 @@ export function BoardEditorPanel() {
           {realCrossSections.map((cs, i) => {
             const index = i + 1;
             return (
-              <li key={index}>
-                <button
-                  style={{ fontWeight: activeCrossSectionIndex === index ? 'bold' : 'normal' }}
-                  onClick={() => selectView({ crossSection: index })}
-                >
-                  {cs.position.toFixed(1)} cm
-                </button>
-                <input
-                  type="number"
-                  value={cs.position}
-                  onChange={(e) =>
-                    dispatch('Move cross-section', (b) => moveCrossSectionCommand(b, index, Number(e.target.value)))
+              <CrossSectionRow
+                key={cs.position}
+                index={index}
+                position={cs.position}
+                active={activeCrossSectionIndex === index}
+                onSelect={() => selectView({ crossSectionPosition: cs.position })}
+                onCommitPosition={(idx, value) => {
+                  // Read the ACTUAL resulting position back off the command's result rather
+                  // than trusting the raw typed `value`: moveCrossSectionCommand may clamp it
+                  // to the board's bounds and/or nudge it away from a collision (see
+                  // resolveUniqueCrossSectionPosition in Task 10) - `value` alone would go
+                  // stale immediately for the same reason a remembered-but-uncommitted anchor
+                  // does below. `commandFn` runs synchronously inside `dispatch` (Task 12), so
+                  // this closure-capture is the same pattern Editor2D.tsx's onDoubleClick
+                  // already uses to read back addControlPointCommand's `knotIndex`.
+                  let actualPosition = value;
+                  dispatch('Move cross-section', (b) => {
+                    const result = moveCrossSectionCommand(b, idx, value);
+                    actualPosition = result.position;
+                    return result.board;
+                  });
+
+                  // viewMode.crossSectionPosition is a remembered anchor for nearest-match
+                  // re-resolution (see findActiveCrossSectionIndex) - if it's left stale after
+                  // the ACTIVE row moves its own position, the anchor keeps pointing at the old
+                  // position, and a large-enough move can put a neighboring row closer to that
+                  // stale anchor than this row now is, silently reassigning selection to that
+                  // neighbor. Keep the anchor in sync (using the actual committed position,
+                  // not the raw input) when the row being committed is the active one.
+                  if (idx === activeCrossSectionIndex) {
+                    setViewMode({ crossSectionPosition: actualPosition });
                   }
-                />
-                <button onClick={() => dispatch('Remove cross-section', (b) => removeCrossSectionCommand(b, index))}>
-                  Remove
-                </button>
-              </li>
+                }}
+                onRemove={() => {
+                  // findActiveCrossSectionIndex tracks by nearest-position, which is needed
+                  // so a selected row survives editing its OWN position - but that same
+                  // leniency means removing the currently-active row wouldn't reliably
+                  // resolve to null afterward (some other remaining row is often still
+                  // "nearest"), so the null-triggered fallback effect below wouldn't fire.
+                  // Handle this case explicitly instead of relying on that heuristic.
+                  if (index === activeCrossSectionIndex) {
+                    selectView('outline');
+                  }
+                  dispatch('Remove cross-section', (b) => removeCrossSectionCommand(b, index));
+                }}
+              />
             );
           })}
         </ul>
@@ -4378,7 +4640,7 @@ export function BoardEditorPanel() {
 
       <Editor2D
         spline={activeSpline}
-        splineRef={toSplineRef(viewMode)}
+        splineRef={toSplineRef(viewMode, activeCrossSectionIndex)}
         viewport={viewport}
         isCrossSection={activeCrossSectionIndex != null}
       />
