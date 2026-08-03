@@ -28,6 +28,14 @@ export function BoardStateProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timeout);
   }, [board]);
 
+  useEffect(() => {
+    function handleBeforeUnload() {
+      saveAutosavedBoard(board);
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [board]);
+
   const dispatch = useCallback((description: string, commandFn: (board: Board) => Board) => {
     const current = boardRef.current;
     const after = commandFn(current);

@@ -14,5 +14,9 @@ export function loadAutosavedBoard(): Board | null {
 }
 
 export function saveAutosavedBoard(board: Board): void {
-  localStorage.setItem(STORAGE_KEY, serializeBoard(board));
+  try {
+    localStorage.setItem(STORAGE_KEY, serializeBoard(board));
+  } catch (err) {
+    console.warn('Failed to autosave board:', err);
+  }
 }
