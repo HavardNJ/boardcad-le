@@ -149,10 +149,19 @@ export function Editor2D({ spline, splineRef, viewport, isCrossSection }: Editor
     setGuidePoints([]);
   }
 
+  function toggleMode() {
+    setMode((m) => {
+      if (m === 'guide') {
+        setGuidePoints([]);
+      }
+      return m === 'edit' ? 'guide' : 'edit';
+    });
+  }
+
   return (
     <div tabIndex={0} onKeyDown={onKeyDown}>
       <div>
-        <button onClick={() => setMode(mode === 'edit' ? 'guide' : 'edit')}>{mode === 'edit' ? 'Add Guide Points' : 'Editing Points'}</button>
+        <button onClick={toggleMode}>{mode === 'edit' ? 'Add Guide Points' : 'Editing Points'}</button>
         {mode === 'guide' && (
           <>
             <button onClick={fitCurve} disabled={guidePoints.length === 0}>
