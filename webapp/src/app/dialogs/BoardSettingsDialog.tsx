@@ -25,6 +25,7 @@ export function BoardSettingsDialog({ open, onClose }: BoardSettingsDialogProps)
   const [width, setWidth] = useState(getMaxWidth(board));
   const [thickness, setThickness] = useState(getMaxThickness(board));
   const wasOpen = useRef(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Only re-sync fields from `board` on the open transition (false -> true), not on every
   // `board` change while the dialog stays open. Re-syncing on every `board` change would
@@ -42,6 +43,15 @@ export function BoardSettingsDialog({ open, onClose }: BoardSettingsDialogProps)
     }
     wasOpen.current = open;
   }, [open, board]);
+
+  // Move focus into the dialog whenever it opens, so Escape works immediately instead of
+  // only once focus happens to land inside (e.g. after clicking a field). Also makes the
+  // backdrop below meaningfully modal: with focus trapped visually inside the dialog and
+  // the backdrop covering/blocking the rest of the app, there's no way to interact with the
+  // toolbar (New/Open/Save/Undo/Redo) while this is open.
+  useEffect(() => {
+    if (open) dialogRef.current?.focus();
+  }, [open]);
 
   if (!open) return null;
 
@@ -62,43 +72,55 @@ export function BoardSettingsDialog({ open, onClose }: BoardSettingsDialogProps)
   }
 
   return (
-    <div
-      role="dialog"
-      aria-label="Board Settings"
-      aria-modal="true"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
-      }}
-    >
-      <label>
-        Name
-        <input value={name} onChange={(e) => setName(e.target.value)} />
-      </label>
-      <label>
-        Designer
-        <input value={designer} onChange={(e) => setDesigner(e.target.value)} />
-      </label>
-      <label>
-        Length (cm)
-        <input type="number" value={length} onChange={(e) => setLength(Number(e.target.value))} />
-      </label>
-      <label>
-        Width (cm)
-        <input type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))} />
-      </label>
-      <label>
-        Thickness (cm)
-        <input type="number" value={thickness} onChange={(e) => setThickness(Number(e.target.value))} />
-      </label>
-      {errorMessage != null && (
-        <p role="alert" style={{ color: 'red' }}>
-          {errorMessage}
-        </p>
-      )}
-      <button onClick={onSave} disabled={!isValid}>
-        Save
-      </button>
-      <button onClick={onClose}>Cancel</button>
+    // Real modal behavior, not just ARIA attributes: the backdrop covers and functionally
+    // blocks the rest of the app (toolbar included) while open, and clicking it closes the
+    // dialog like Cancel. Without this, the toolbar's New/Open stayed fully clickable behind
+    // the "open" dialog, which could silently apply this dialog's stale fields to a
+    // just-reset board - see BoardEditorPanel's resetVersion handling for the analogous
+    // stale-view problem on the 2D editor side.
+    <div className="dialogBackdrop" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-label="Board Settings"
+        aria-modal="true"
+        tabIndex={-1}
+        className="dialog"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onClose();
+        }}
+      >
+        <label>
+          Name
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label>
+          Designer
+          <input value={designer} onChange={(e) => setDesigner(e.target.value)} />
+        </label>
+        <label>
+          Length (cm)
+          <input type="number" value={length} onChange={(e) => setLength(Number(e.target.value))} />
+        </label>
+        <label>
+          Width (cm)
+          <input type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))} />
+        </label>
+        <label>
+          Thickness (cm)
+          <input type="number" value={thickness} onChange={(e) => setThickness(Number(e.target.value))} />
+        </label>
+        {errorMessage != null && (
+          <p role="alert" style={{ color: 'red' }}>
+            {errorMessage}
+          </p>
+        )}
+        <button onClick={onSave} disabled={!isValid}>
+          Save
+        </button>
+        <button onClick={onClose}>Cancel</button>
+      </div>
     </div>
   );
 }
