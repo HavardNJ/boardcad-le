@@ -125,6 +125,7 @@ export function Editor2D({ spline, splineRef, viewport, isCrossSection }: Editor
   }
 
   function onDoubleClick(event: React.MouseEvent<HTMLCanvasElement>) {
+    if (mode !== 'edit') return;
     const boardPos = screenToBoard(viewport, eventToScreenPos(event));
     let newKnotIndex = -1;
     dispatch('Add control point', (board) => {
@@ -138,6 +139,7 @@ export function Editor2D({ spline, splineRef, viewport, isCrossSection }: Editor
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (mode !== 'edit') return;
     if ((event.key === 'Delete' || event.key === 'Backspace') && selection != null && selection.which === 0) {
       dispatch('Delete control point', (board) => deleteControlPointCommand(board, splineRef, selection.knotIndex));
       setSelection(null);
@@ -150,18 +152,16 @@ export function Editor2D({ spline, splineRef, viewport, isCrossSection }: Editor
   }
 
   function toggleMode() {
-    setMode((m) => {
-      if (m === 'guide') {
-        setGuidePoints([]);
-      }
-      return m === 'edit' ? 'guide' : 'edit';
-    });
+    if (mode === 'guide') {
+      setGuidePoints([]);
+    }
+    setMode(mode === 'edit' ? 'guide' : 'edit');
   }
 
   return (
     <div tabIndex={0} onKeyDown={onKeyDown}>
       <div>
-        <button onClick={toggleMode}>{mode === 'edit' ? 'Add Guide Points' : 'Editing Points'}</button>
+        <button onClick={toggleMode}>{mode === 'edit' ? 'Add Guide Points' : 'Edit Points'}</button>
         {mode === 'guide' && (
           <>
             <button onClick={fitCurve} disabled={guidePoints.length === 0}>
