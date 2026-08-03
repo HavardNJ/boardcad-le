@@ -100,4 +100,20 @@ describe('board JSON persistence', () => {
     parsed.formatVersion = 99;
     expect(() => deserializeBoard(JSON.stringify(parsed))).toThrow(BoardFileError);
   });
+
+  it('deserializeBoard throws BoardFileError (not a raw TypeError) for a malformed control point', () => {
+    // The container-level Array.isArray checks accept `outline: [{}]` (it IS an array),
+    // but the element itself is missing point/tangentPrev/tangentNext/continuous.
+    // Without element-level validation, this used to throw a raw TypeError from deep
+    // inside splineFromJson instead of a catchable BoardFileError.
+    const parsed = JSON.parse(serializeBoard(newBoard()));
+    parsed.outline = [{}];
+    expect(() => deserializeBoard(JSON.stringify(parsed))).toThrow(BoardFileError);
+  });
+
+  it('deserializeBoard throws BoardFileError (not a raw TypeError) for a garbage cross-section element', () => {
+    const parsed = JSON.parse(serializeBoard(newBoard()));
+    parsed.crossSections = [null];
+    expect(() => deserializeBoard(JSON.stringify(parsed))).toThrow(BoardFileError);
+  });
 });
