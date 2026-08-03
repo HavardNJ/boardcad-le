@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { Point2D } from '../../core/bezier/point';
 import { BezierSpline } from '../../core/bezier/bezierSpline';
+import { END_POINT } from '../../core/bezier/bezierKnot';
 import * as vec from '../../core/bezier/vecMath';
 import { moveControlPointCommand, moveKnotTangent, addControlPointCommand, deleteControlPointCommand } from '../../core/commands/editCommands';
 import type { SplineRef } from '../../core/commands/splineRef';
@@ -83,7 +84,15 @@ export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
 
   function onDoubleClick(event: React.MouseEvent<HTMLCanvasElement>) {
     const boardPos = screenToBoard(viewport, eventToScreenPos(event));
-    dispatch('Add control point', (board) => addControlPointCommand(board, splineRef, boardPos).board);
+    let newKnotIndex = -1;
+    dispatch('Add control point', (board) => {
+      const result = addControlPointCommand(board, splineRef, boardPos);
+      newKnotIndex = result.knotIndex;
+      return result.board;
+    });
+    if (newKnotIndex >= 0) {
+      setSelection({ knotIndex: newKnotIndex, which: END_POINT });
+    }
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
