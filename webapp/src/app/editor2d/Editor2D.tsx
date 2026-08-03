@@ -22,6 +22,26 @@ function eventToScreenPos(event: React.PointerEvent<HTMLCanvasElement> | React.M
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
 
+/**
+ * `spline.clone()` deep-copies each knot's points but NOT its `.slave` reference (see
+ * `BezierKnot.clone()`'s doc comment) - a knot cloned from `board.deck`'s or
+ * `board.bottom`'s nose/tail (slave-linked by `setLocks()`) would still have `.slave`
+ * pointing at the REAL, live knot on the real board. Since this preview is a scratch,
+ * render-only copy that's mutated directly (bypassing `dispatch`/`cloneBoard`) on every
+ * pointermove, leaving `.slave` intact would let `updateSlave()` reach through it and
+ * mutate the live board in place mid-drag - outside undo history, outside React state.
+ * Stripping `.slave` here (the preview never needs real slave-sync; it's discarded once
+ * the real command runs and produces a properly `cloneBoard`+`setLocks`-rebound board)
+ * makes that impossible.
+ */
+function clonePreviewSpline(spline: BezierSpline): BezierSpline {
+  const preview = spline.clone();
+  for (let i = 0; i < preview.getNrOfControlPoints(); i++) {
+    preview.getControlPoint(i).slave = null;
+  }
+  return preview;
+}
+
 export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
   const { dispatch } = useBoardState();
   const [selection, setSelection] = useState<KnotSelection | null>(null);
@@ -53,7 +73,7 @@ export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
     if (hit == null) return;
 
     dragRef.current = hit;
-    setPreviewSpline(spline.clone());
+    setPreviewSpline(clonePreviewSpline(spline));
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
@@ -78,6 +98,13 @@ export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
     const boardPos = screenToBoard(viewport, eventToScreenPos(event));
     dispatch('Move control point', (board) => moveControlPointCommand(board, splineRef, drag.knotIndex, drag.which, boardPos.x, boardPos.y));
 
+    dragRef.current = null;
+    setPreviewSpline(null);
+  }
+
+  function onPointerCancel() {
+    // Gesture was cancelled (touch reinterpreted, stylus left range, OS interruption) -
+    // clear drag state WITHOUT dispatching; a cancelled gesture shouldn't commit a change.
     dragRef.current = null;
     setPreviewSpline(null);
   }
@@ -111,6 +138,7 @@ export function Editor2D({ spline, splineRef, viewport }: Editor2DProps) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
         onDoubleClick={onDoubleClick}
       />
     </div>

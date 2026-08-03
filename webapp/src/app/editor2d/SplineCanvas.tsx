@@ -16,6 +16,7 @@ export interface SplineCanvasProps {
   onPointerDown?: (event: React.PointerEvent<HTMLCanvasElement>) => void;
   onPointerMove?: (event: React.PointerEvent<HTMLCanvasElement>) => void;
   onPointerUp?: (event: React.PointerEvent<HTMLCanvasElement>) => void;
+  onPointerCancel?: (event: React.PointerEvent<HTMLCanvasElement>) => void;
   onDoubleClick?: (event: React.MouseEvent<HTMLCanvasElement>) => void;
 }
 
@@ -32,7 +33,7 @@ function drawHandle(ctx: CanvasRenderingContext2D, p: Point2D, selected: boolean
 }
 
 export function SplineCanvas(props: SplineCanvasProps) {
-  const { spline, viewport, selection, onPointerDown, onPointerMove, onPointerUp, onDoubleClick } = props;
+  const { spline, viewport, selection, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onDoubleClick } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useLayoutEffect(() => {
@@ -85,6 +86,7 @@ export function SplineCanvas(props: SplineCanvasProps) {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       onDoubleClick={onDoubleClick}
       style={{ touchAction: 'none', border: '1px solid #cbd5e1' }}
     />
