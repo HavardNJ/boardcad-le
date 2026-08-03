@@ -8,26 +8,45 @@ import { useBoardState } from '../state/BoardStateContext';
 import { Editor2D } from './Editor2D';
 import { fitViewport, type Viewport } from './viewport';
 
-type ViewMode = 'outline' | 'deck' | 'bottom' | { crossSection: number };
+type ViewMode = 'outline' | 'deck' | 'bottom' | { crossSectionPosition: number };
 
 const CANVAS_WIDTH = 640;
 const CANVAS_HEIGHT = 480;
 
-function resolveViewSpline(board: Board, mode: ViewMode): BezierSpline {
+/** Finds the real (non-boundary) cross-section whose position is closest to `position`.
+ *  Returns null if there are no real cross-sections. Re-run on every render rather than
+ *  cached, so it always reflects the current board - array index alone isn't a stable
+ *  identity across dispatches (removeCrossSectionCommand splices, moveCrossSectionCommand
+ *  re-sorts), but position survives both as long as the cross-section itself still exists. */
+function findActiveCrossSectionIndex(board: Board, viewMode: ViewMode): number | null {
+  if (typeof viewMode !== 'object') return null;
+  let bestIndex: number | null = null;
+  let bestDist = Infinity;
+  for (let i = 1; i < board.crossSections.length - 1; i++) {
+    const dist = Math.abs(board.crossSections[i].position - viewMode.crossSectionPosition);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+function resolveViewSpline(board: Board, mode: ViewMode, activeCrossSectionIndex: number | null): BezierSpline {
   if (mode === 'outline') return board.outline;
   if (mode === 'deck') return board.deck;
   if (mode === 'bottom') return board.bottom;
-  return board.crossSections[mode.crossSection].spline;
+  return activeCrossSectionIndex != null ? board.crossSections[activeCrossSectionIndex].spline : board.outline;
 }
 
-function toSplineRef(mode: ViewMode): SplineRef {
+function toSplineRef(mode: ViewMode, activeCrossSectionIndex: number | null): SplineRef {
   if (mode === 'outline' || mode === 'deck' || mode === 'bottom') return mode;
-  return { crossSection: mode.crossSection };
+  return { crossSection: activeCrossSectionIndex ?? 0 };
 }
 
 function sameMode(a: ViewMode, b: ViewMode): boolean {
   if (typeof a === 'object' || typeof b === 'object') {
-    return typeof a === 'object' && typeof b === 'object' && a.crossSection === b.crossSection;
+    return typeof a === 'object' && typeof b === 'object' && a.crossSectionPosition === b.crossSectionPosition;
   }
   return a === b;
 }
@@ -101,15 +120,29 @@ export function BoardEditorPanel() {
   const [viewMode, setViewMode] = useState<ViewMode>('outline');
   const [viewport, setViewport] = useState<Viewport>(() => fitViewport(board.outline, CANVAS_WIDTH, CANVAS_HEIGHT, 30, false));
 
+  const activeCrossSectionIndex = findActiveCrossSectionIndex(board, viewMode);
+
   function selectView(mode: ViewMode) {
     setViewMode(mode);
-    const spline = resolveViewSpline(board, mode);
+    const resolvedIndex = findActiveCrossSectionIndex(board, mode);
+    const spline = resolveViewSpline(board, mode, resolvedIndex);
     const flipY = mode !== 'outline';
     setViewport(fitViewport(spline, CANVAS_WIDTH, CANVAS_HEIGHT, 30, flipY));
   }
 
-  const activeSpline = resolveViewSpline(board, viewMode);
-  const activeCrossSectionIndex = typeof viewMode === 'object' ? viewMode.crossSection : null;
+  // If the cross-section the user was editing gets removed out from under them (not just
+  // reordered - findActiveCrossSectionIndex only returns null when no real cross-section
+  // remains close enough to have been "it"), fall back to the Outline tab rather than
+  // silently rendering board.outline while isCrossSection stays true and no tab is
+  // highlighted as active.
+  useEffect(() => {
+    if (typeof viewMode === 'object' && activeCrossSectionIndex == null) {
+      selectView('outline');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCrossSectionIndex, viewMode]);
+
+  const activeSpline = resolveViewSpline(board, viewMode, activeCrossSectionIndex);
   const realCrossSections = board.crossSections.slice(1, -1);
 
   return (
@@ -129,15 +162,26 @@ export function BoardEditorPanel() {
             const index = i + 1;
             return (
               <CrossSectionRow
-                key={index}
+                key={cs.position}
                 index={index}
                 position={cs.position}
                 active={activeCrossSectionIndex === index}
-                onSelect={() => selectView({ crossSection: index })}
+                onSelect={() => selectView({ crossSectionPosition: cs.position })}
                 onCommitPosition={(idx, value) =>
                   dispatch('Move cross-section', (b) => moveCrossSectionCommand(b, idx, value))
                 }
-                onRemove={() => dispatch('Remove cross-section', (b) => removeCrossSectionCommand(b, index))}
+                onRemove={() => {
+                  // findActiveCrossSectionIndex tracks by nearest-position, which is needed
+                  // so a selected row survives editing its OWN position - but that same
+                  // leniency means removing the currently-active row wouldn't reliably
+                  // resolve to null afterward (some other remaining row is often still
+                  // "nearest"), so the null-triggered fallback effect below wouldn't fire.
+                  // Handle this case explicitly instead of relying on that heuristic.
+                  if (index === activeCrossSectionIndex) {
+                    selectView('outline');
+                  }
+                  dispatch('Remove cross-section', (b) => removeCrossSectionCommand(b, index));
+                }}
               />
             );
           })}
@@ -146,7 +190,7 @@ export function BoardEditorPanel() {
 
       <Editor2D
         spline={activeSpline}
-        splineRef={toSplineRef(viewMode)}
+        splineRef={toSplineRef(viewMode, activeCrossSectionIndex)}
         viewport={viewport}
         isCrossSection={activeCrossSectionIndex != null}
       />
