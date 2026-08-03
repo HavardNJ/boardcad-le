@@ -167,9 +167,18 @@ export function BoardEditorPanel() {
                 position={cs.position}
                 active={activeCrossSectionIndex === index}
                 onSelect={() => selectView({ crossSectionPosition: cs.position })}
-                onCommitPosition={(idx, value) =>
-                  dispatch('Move cross-section', (b) => moveCrossSectionCommand(b, idx, value))
-                }
+                onCommitPosition={(idx, value) => {
+                  // viewMode.crossSectionPosition is a remembered anchor for nearest-match
+                  // re-resolution (see findActiveCrossSectionIndex) - if it's left stale after
+                  // the ACTIVE row moves its own position, the anchor keeps pointing at the old
+                  // position, and a large-enough move can put a neighboring row closer to that
+                  // stale anchor than this row now is, silently reassigning selection to that
+                  // neighbor. Keep the anchor in sync when the row being committed is the active one.
+                  if (idx === activeCrossSectionIndex) {
+                    setViewMode({ crossSectionPosition: value });
+                  }
+                  dispatch('Move cross-section', (b) => moveCrossSectionCommand(b, idx, value));
+                }}
                 onRemove={() => {
                   // findActiveCrossSectionIndex tracks by nearest-position, which is needed
                   // so a selected row survives editing its OWN position - but that same
