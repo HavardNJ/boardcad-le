@@ -37,11 +37,14 @@ repositories {
 
 def os = org.gradle.internal.os.OperatingSystem.current()
 
+def requestedArch = (findProperty('nativeArch') ?: System.getProperty('os.arch')).toString()
+def isArm64 = requestedArch in ['aarch64', 'arm64']
+
 def nativeClassifier =
-        os.isWindows() ? "natives-windows-amd64" :
-        os.isLinux()   ? "natives-linux-amd64" :
-        os.isMacOsX()  ? "natives-macosx-universal" :
-        null
+    os.isWindows() ? "natives-windows-amd64" :
+    os.isLinux() ? (isArm64 ? "natives-linux-aarch64" : "natives-linux-amd64") :
+    os.isMacOsX() ? "natives-macosx-universal" :
+    null
 
 dependencies {
     implementation 'org.jogamp.java3d:java3d-core:1.7.2'
